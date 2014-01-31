@@ -48,7 +48,9 @@ data JobStatus = Pending | Pulling | Running | Success | Failure
 type LamCIM a = ScottyT TL.Text (ReaderT LCIState IO) a
 type Action a = ActionT TL.Text (ReaderT LCIState IO) a
 
-main = lambdaCI [Project "glutamate" "probably-base"]
+main = lambdaCI [Project "glutamate" "probably-base",
+                 Project "ottigerb" "therapy-server",
+                 Project "ottigerb" "ng-survey-server"]
 
 lambdaCI projs = do 
    mapM_ initialise projs
@@ -92,10 +94,6 @@ routes =  do
       [] -> html $ "no job " <> tshow jobid
       founds  -> do jobdisps <- mapM jobDisp founds
                     html $  TL.concat jobdisps 
-
-  get "/:word" $ do
-    beam <- param "word"
-    html $ mconcat ["<h1>Scotty, ", beam, " me up!</h1>"]
 
 jobRow (Job (Project u r) id statusTV outTV) = do
     status <- atomically $ readTVar statusTV

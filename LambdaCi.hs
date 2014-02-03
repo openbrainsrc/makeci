@@ -77,6 +77,9 @@ routes =  do
     jobs <- getJobQueue >>= mapM jobRow
     done_jobs <- getJobsDone >>= mapM jobRow
     projects <- withState projects $ mapM projRow
+    let mreload = if null jobs
+                     then ""
+                     else "<META HTTP-EQUIV=\"refresh\" CONTENT=\"2\">"
     html $ TL.concat ["<h1>Projects</h1><table>" <> TL.concat projects <> "</table>",
                       "<h1>Jobs (running)</h1><table>" <> TL.concat jobs <> "</table>",
                       "<h1>Jobs (done)</h1><table>" <> TL.concat done_jobs <> "</table>"]

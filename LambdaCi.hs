@@ -235,7 +235,7 @@ psh pwd cmd =
       excode <- waitForProcess ph
       case excode of
         ExitSuccess -> return $ Right sout
-        ExitFailure _ -> return $ Left serr)
+        ExitFailure _ -> return $ Left (sout++serr))
   where slurp hout herr = do
           sout <- hGetContents hout ; serr <- hGetContents herr
           waitOut <- forkWait sout  ; waitErr <- forkWait serr

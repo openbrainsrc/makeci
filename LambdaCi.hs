@@ -123,7 +123,7 @@ jobDisp job = do
      H.div H.! A.class_ "container" $ do
        H.div H.! A.class_ "row" $ do
          H.div H.! A.class_ "span12" $ do
-            H.h4 $ H.toHtml $ repoName (jobProj job) 
+            H.h4 $ H.toHtml $ userName (jobProj job) 
                               ++ "/" 
                               ++ repoName (jobProj job)
                               ++ ": "

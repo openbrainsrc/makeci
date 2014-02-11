@@ -21,7 +21,8 @@ import Data.Monoid
 import qualified Control.Exception as C
 import Control.Exception
 import Control.DeepSeq (rnf)
-
+import Data.Maybe
+import Data.List
 
 data Project 
   =  Project { userName :: String,
@@ -218,11 +219,17 @@ runBuild job@(Job prj jid statusTV outTV) =  do
                        res <- psh ("/tmp/"++repoName prj) ("make citest")
                        case res of
                          Left terrS -> STM.atomically $ do
-                            writeTVar outTV [resS, "\n", terrS]
+                            writeTVar outTV [terrS, "\n",resS ]
                             writeTVar statusTV TestFailure
-                         Right sresS -> STM.atomically $ do
-                            writeTVar outTV [resS,"\n",sresS]
-                            writeTVar statusTV Success
+                         Right sresS -> do
+                            extraOutput <- getExtraOutput sresS
+                            STM.atomically $ do
+                              writeTVar outTV [extraOutput, sresS,"\n",resS]
+                              writeTVar statusTV Success
+
+getExtraOutput sresS = do
+  let files = catMaybes $ map (stripPrefix "file://") $ lines sresS
+  fmap unlines $ mapM readFile files
 
 -- from Baysig.Utils, by Ian Ross
 

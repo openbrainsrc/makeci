@@ -3,6 +3,7 @@ import Web.Scotty.Trans
 
 import Data.Monoid (mconcat)
 import qualified Data.Text as T
+import qualified Data.Text.IO as T
 import qualified Data.Text.Lazy as TL
 import System.Directory
 import System.Process
@@ -24,6 +25,11 @@ import Control.DeepSeq (rnf)
 import Data.Maybe
 import Data.List
 
+import qualified Text.Blaze.Html5 as H
+import qualified Text.Blaze.Html5.Attributes as A
+import Text.Blaze.Html.Renderer.Text (renderHtml)
+import Text.Blaze.Internal (preEscapedText, preEscapedString)
+
 data Project 
   =  Project { userName :: String,
                repoName :: String }
@@ -39,7 +45,7 @@ data Job
   = Job { jobProj   :: Project,
           jobId     :: Int,
           jobStatus :: TVar JobStatus,
-          jobOutput :: TVar [String]   }       
+          jobOutput :: TVar H.Html   }       
 
 instance Show Job where
   show (Job prj id _ _ ) = "Job ("++show prj++") "++show id
@@ -99,8 +105,8 @@ routes =  do
     jobs <- liftM2 (++) getJobQueue getJobsDone
     case [job | job <- jobs, jobId job == jobid] of
       [] -> html $ "no job " <> tshow jobid
-      founds  -> do jobdisps <- mapM jobDisp founds
-                    html $  TL.concat jobdisps 
+      found:_  -> do jobdisp <-  jobDisp found
+                     blaze jobdisp
 
 jobRow (Job (Project u r) id statusTV outTV) = do
     status <- atomically $ readTVar statusTV
@@ -110,10 +116,9 @@ jobRow (Job (Project u r) id statusTV outTV) = do
                        tshow id,"\">",tshow status,"</a></td></tr>"]
 
 jobDisp job = do
-  row <- jobRow job
   outSS <- atomically $ readTVar $ jobOutput job
-  let outT = TL.unlines $ reverse $ map TL.pack outSS
-  return $ TL.concat ["<table>", row, "</table><pre>", outT,"</pre>"]
+--  let outT = TL.unlines $ reverse $ map TL.pack outSS
+  return $ template (repoName $ jobProj job) $ outSS -- H.pre $ preEscapedText outT
 
 projRow (Project u r) 
   = return $ TL.concat ["<tr><td>", TL.pack u, 
@@ -124,6 +129,17 @@ projRow (Project u r)
 
 tshow :: Show a => a -> TL.Text
 tshow = TL.pack . show
+
+template title body_html = H.docTypeHtml $ do
+        H.head $ do
+          H.title $ H.toHtml title
+          H.link H.! A.href "http://netdna.bootstrapcdn.com/twitter-bootstrap/2.3.2/css/bootstrap-combined.min.css" H.! A.rel "stylesheet"
+                
+          H.script H.! A.src "https://ajax.googleapis.com/ajax/libs/jquery/1.9.0/jquery.min.js"
+                 $ ""
+          H.script H.! A.src "http://netdna.bootstrapcdn.com/twitter-bootstrap/2.3.2/js/bootstrap.min.js"
+                 $ ""
+        H.body body_html
 
 initialise proj = do
   ensure_exists_or_pull proj
@@ -142,23 +158,16 @@ pull proj = do
 build proj = do
   jid <- freshId
   status <- atomically $ newTVar Pending
-  out <- atomically $ newTVar []
+  out <- atomically $ newTVar (mempty)
   let job = Job proj jid status out
-  addJobToQueue job
---  liftIO $ runBuild job
- -- liftIO $ system $ "(cd /tmp/" ++ projName proj ++ " && make)"  
+  withState jobQueue $ \jqtv -> do
+       void $ modifyTVar jqtv (job:)  
 
 getProjects = fmap projects $ lift ask
 
 freshId :: Action Int
 freshId  = do tv <- fmap counter $ lift ask
               modifyTVar tv (+1)
-
-addJobToQueue :: Job -> Action ()
-addJobToQueue jb = withState jobQueue $ \jqtv -> do
-               void $ modifyTVar jqtv (jb:)
- 
-
 
 getJobQueue :: Action [Job]
 getJobQueue = withState jobQueue $ atomically . readTVar 
@@ -185,13 +194,6 @@ gitUrl (Project user repo) = "git@github.com:"++user++"/"++repo++".git"
 atomically = liftIO . STM.atomically
 
 
-addJobOutput :: Job -> String -> IO ()
-addJobOutput (Job prj jid statusTV outTV) s = STM.atomically $ do
-  old_out <- readTVar outTV
-  writeTVar outTV (s:old_out)
-  
-
-
 backworker :: TVar [Job] -> TVar [Job] -> IO ()
 backworker q done = do
    job <- STM.atomically $ do 
@@ -207,29 +209,32 @@ backworker q done = do
 runBuild job@(Job prj jid statusTV outTV) =  do 
     STM.atomically $ writeTVar statusTV Pulling
     pull prj
-    STM.atomically $ writeTVar statusTV Running
+    STM.atomically $ writeTVar statusTV Building
     res <- psh ("/tmp/"++repoName prj) ("make cibuild")
     case res of
       Left errS -> STM.atomically $ do
-                      writeTVar outTV [errS]
+                      writeTVar outTV $ H.pre $ preEscapedString errS
                       writeTVar statusTV BuildFailure
       Right resS -> do STM.atomically $ do 
                           writeTVar statusTV Testing
-                          writeTVar outTV [resS]
+                          writeTVar outTV $ H.pre $ preEscapedString resS
                        res <- psh ("/tmp/"++repoName prj) ("make citest")
                        case res of
                          Left terrS -> STM.atomically $ do
-                            writeTVar outTV [terrS, "\n",resS ]
+                            writeTVar outTV $ do H.pre $ preEscapedString resS
+                                                 H.pre $ preEscapedString terrS
                             writeTVar statusTV TestFailure
                          Right sresS -> do
                             extraOutput <- getExtraOutput sresS
                             STM.atomically $ do
-                              writeTVar outTV [extraOutput, sresS,"\n",resS]
+                              writeTVar outTV $ do H.pre $ preEscapedString resS
+                                                   H.pre $ preEscapedString sresS
+                                                   extraOutput
                               writeTVar statusTV Success
 
 getExtraOutput sresS = do
   let files = catMaybes $ map (stripPrefix "file://") $ lines sresS
-  fmap unlines $ mapM readFile files
+  fmap (preEscapedText . mconcat) $ mapM T.readFile files
 
 -- from Baysig.Utils, by Ian Ross
 
@@ -264,3 +269,6 @@ psh pwd cmd =
             forkIO $ try (restore $ C.evaluate $ rnf a) >>= putMVar res
           return (takeMVar res >>=
                   either (\ex -> throwIO (ex :: SomeException)) return)
+
+blaze :: H.Html -> Action ()
+blaze = html . renderHtml

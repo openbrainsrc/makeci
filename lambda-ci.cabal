@@ -19,3 +19,5 @@ Executable lambda-ci
                   , stm
                   , mtl
                   , deepseq
+                  , blaze-html
+                  , blaze-markup

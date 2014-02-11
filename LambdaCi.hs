@@ -43,12 +43,15 @@ data Job
 instance Show Job where
   show (Job prj id _ _ ) = "Job ("++show prj++") "++show id
 
-data JobStatus = Pending | Pulling | Running | Success | Failure
+data JobStatus = Pending | Pulling | Running | Testing | Success | BuildFailure | TestFailure
   deriving Show
+
 type LamCIM a = ScottyT TL.Text (ReaderT LCIState IO) a
 type Action a = ActionT TL.Text (ReaderT LCIState IO) a
 
 main = lambdaCI [Project "glutamate" "probably-base",
+                 Project "glutamate" "matio",
+                 Project "glutamate" "baysig-platform",
                  Project "ottigerb" "therapy-server",
                  Project "ottigerb" "ng-survey-server"]
 
@@ -205,15 +208,21 @@ runBuild job@(Job prj jid statusTV outTV) =  do
     pull prj
     STM.atomically $ writeTVar statusTV Running
     res <- psh ("/tmp/"++repoName prj) ("make cibuild")
-    print res
     case res of
       Left errS -> STM.atomically $ do
                       writeTVar outTV [errS]
-                      writeTVar statusTV Failure
-      Right resS -> STM.atomically $ do
-                      writeTVar outTV [resS]
-                      writeTVar statusTV Success
-
+                      writeTVar statusTV BuildFailure
+      Right resS -> do STM.atomically $ do 
+                          writeTVar statusTV Testing
+                          writeTVar outTV [resS]
+                       res <- psh ("/tmp/"++repoName prj) ("make citest")
+                       case res of
+                         Left terrS -> STM.atomically $ do
+                            writeTVar outTV [resS, "\n", terrS]
+                            writeTVar statusTV TestFailure
+                         Right sresS -> STM.atomically $ do
+                            writeTVar outTV [resS,"\n",sresS]
+                            writeTVar statusTV Success
 
 -- from Baysig.Utils, by Ian Ross
 

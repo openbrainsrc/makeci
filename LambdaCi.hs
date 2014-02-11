@@ -44,7 +44,7 @@ data Job
 instance Show Job where
   show (Job prj id _ _ ) = "Job ("++show prj++") "++show id
 
-data JobStatus = Pending | Pulling | Running | Testing | Success | BuildFailure | TestFailure
+data JobStatus = Pending | Pulling | Building | Testing | Success | BuildFailure | TestFailure
   deriving Show
 
 type LamCIM a = ScottyT TL.Text (ReaderT LCIState IO) a

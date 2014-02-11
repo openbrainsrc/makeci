@@ -63,7 +63,7 @@ main = lambdaCI [Project "glutamate" "probably-base",
                  Project "ottigerb" "ng-survey-server"]
 
 lambdaCI projs = do 
-   mapM_ initialise projs
+   mapM_ ensure_exists_or_pull projs
    q <- STM.atomically $ newTVar []
    done <- STM.atomically $ newTVar []   
    ctr <- STM.atomically $ newTVar 0
@@ -116,9 +116,19 @@ jobRow (Job (Project u r) id statusTV outTV) = do
                        tshow id,"\">",tshow status,"</a></td></tr>"]
 
 jobDisp job = do
-  outSS <- atomically $ readTVar $ jobOutput job
+  htbody <- atomically $ readTVar $ jobOutput job
+  status <- atomically $ readTVar $ jobStatus job
 --  let outT = TL.unlines $ reverse $ map TL.pack outSS
-  return $ template (repoName $ jobProj job) $ outSS -- H.pre $ preEscapedText outT
+  return $ template (repoName $ jobProj job) $ do
+     H.div H.! A.class_ "container" $ do
+       H.div H.! A.class_ "row" $ do
+         H.div H.! A.class_ "span12" $ do
+            H.h4 $ H.toHtml $ repoName (jobProj job) 
+                              ++ "/" 
+                              ++ repoName (jobProj job)
+                              ++ ": "
+                              ++ show  status
+            htbody
 
 projRow (Project u r) 
   = return $ TL.concat ["<tr><td>", TL.pack u, 
@@ -140,9 +150,6 @@ template title body_html = H.docTypeHtml $ do
           H.script H.! A.src "http://netdna.bootstrapcdn.com/twitter-bootstrap/2.3.2/js/bootstrap.min.js"
                  $ ""
         H.body body_html
-
-initialise proj = do
-  ensure_exists_or_pull proj
 
 ensure_exists_or_pull proj = do
     ex <- doesDirectoryExist $ "/tmp/" ++ repoName proj

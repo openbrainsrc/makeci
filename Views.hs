@@ -27,10 +27,8 @@ jobDisp job = do
   htbody <- atomically $ readTVar $ jobOutput job
   status <- atomically $ readTVar $ jobStatus job
 --  let outT = TL.unlines $ reverse $ map TL.pack outSS
-  return $ template (repoName $ jobProj job) $ do
-     H.div ! A.class_ "container" $ do
-       H.div ! A.class_ "row" $ do
-         H.div ! A.class_ "span12" $ do
+  return $ template (repoName $ jobProj job) (return ()) $ do
+    
             H.h3 $ do H.toHtml $ userName (jobProj job) 
                                  ++ "/" 
                                  ++ repoName (jobProj job)
@@ -39,13 +37,11 @@ jobDisp job = do
             htbody
 
 projRow (Project u r) 
-  = return $ TL.concat ["<tr><td>", TL.pack u, 
-                        "/", TL.pack r,
-                        "</td><td><a href=\"/build-now/", 
-                        TL.pack r,
-                        "\">Build now</a></td><tr>"]
+  = return $ tr $ do td $ toHtml $ u ++ "/"++ r
+                     td $ H.a ! A.href (H.toValue $ "/build-now/"++r) $ "Build now"
 
-template title body_html = H.docTypeHtml $ do
+template :: String -> H.Html -> H.Html -> H.Html
+template title extra_head body_html = H.docTypeHtml $ do
         H.head $ do
           H.title $ H.toHtml title
           H.link ! A.href "http://netdna.bootstrapcdn.com/twitter-bootstrap/2.3.2/css/bootstrap-combined.min.css" ! A.rel "stylesheet"
@@ -54,7 +50,11 @@ template title body_html = H.docTypeHtml $ do
                  $ ""
           H.script ! A.src "http://netdna.bootstrapcdn.com/twitter-bootstrap/2.3.2/js/bootstrap.min.js"
                  $ ""
-        H.body body_html
+          extra_head
+        H.body $ do
+           H.div ! A.class_ "container" $ 
+             H.div ! A.class_ "row" $ 
+               H.div ! A.class_ "span12" $  body_html
 
 showStatus :: UTCTime -> JobStatus -> H.Html
 showStatus start (Success tm) 
@@ -62,7 +62,7 @@ showStatus start (Success tm)
          durMins = durSecs `div` 60
      in toHtml $ if durMins == 0 
                     then "Success ("++show durSecs++"s)"
-                    else "Success ("++show durMins++"m"++show durSecs++"s)"
+                    else "Success ("++show durMins++"m"++show (durSecs `rem` 60) ++"s)"
 
 showStatus _ s = toHtml $show s
 

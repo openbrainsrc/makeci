@@ -22,6 +22,7 @@ import Data.Maybe
 import Data.List
 
 import qualified Text.Blaze.Html5 as H
+import Text.Blaze.Html5 ((!))
 import qualified Text.Blaze.Html5.Attributes as A
 import Text.Blaze.Html.Renderer.Text (renderHtml)
 import Text.Blaze.Internal (preEscapedText, preEscapedString)
@@ -59,15 +60,21 @@ routes =  do
     mapM_ build [ p | p <- projs, repoName p == pNm]
 
   get "/" $ do
-    jobs <- getJobQueue >>= mapM (fmap renderHtml . jobRow)
-    done_jobs <- getJobsDone >>= mapM (fmap renderHtml . jobRow)
+    jobs <- getJobQueue >>= mapM  jobRow
+    done_jobs <- getJobsDone >>= mapM  jobRow
     projects <- withState projects $ mapM projRow
     let mreload = if null jobs
                      then ""
                      else "<META HTTP-EQUIV=\"refresh\" CONTENT=\"2\">"
-    html $ TL.concat [mreload,"<h1>Projects</h1><table>" <> TL.concat projects <> "</table>",
-                      "<h1>Jobs (running)</h1><table>" <> TL.concat jobs <> "</table>",
-                      "<h1>Jobs (done)</h1><table>" <> TL.concat done_jobs <> "</table>"]
+    blaze $ template "MakeCI" (H.meta ! A.httpEquiv "refresh" ! A.content "2") $ do
+            H.h1 "Projects"
+            H.table ! A.class_ "table table-condensed" $ mconcat projects
+
+            H.h1 "Jobs (running)"
+            H.table ! A.class_ "table table-condensed" $ mconcat jobs
+
+            H.h1 "Jobs (done)"
+            H.table ! A.class_ "table table-condensed" $ mconcat done_jobs
 
   get "/build-now/:projname" $ do
     pNm <- param "projname"

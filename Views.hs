@@ -20,8 +20,8 @@ jobRow (Job (Project u r) id hash commit start statusTV outTV) = do
                      td $ toHtml u >> "/" >> toHtml r
                      td $ showDateAndTime start
                      td $ toHtml hash
-                     td $ H.a ! A.href (H.toValue $ "/job/"++show id) $ toHtml commit
-                     td $ showStatus start status
+                     td $  toHtml commit
+                     td $ H.a ! A.href (H.toValue $ "/job/"++show id) $ showStatus start status
 
 jobDisp job = do
   htbody <- atomically $ readTVar $ jobOutput job

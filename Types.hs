@@ -28,17 +28,17 @@ data LCIState
 data Job 
   = Job { jobProj   :: Project,
           jobId     :: Int,
+          jobHash   :: String,
+          jobCommit :: String, 
+          jobSubmitTime :: UTCTime,
           jobStatus :: TVar JobStatus,
           jobOutput :: TVar H.Html   }       
 
 instance Show Job where
-  show (Job prj id _ _ ) = "Job ("++show prj++") "++show id
-
-type GitHash = String
-type GitCommit = String
+  show (Job prj id _ _ _ _ _ ) = "Job ("++show prj++") "++show id
 
 data JobStatus = Pending | Pulling | Building | Testing | BuildFailure | TestFailure
-                | Success GitHash GitCommit UTCTime
+                | Success UTCTime
   deriving Show
 
 type Route a = ScottyT TL.Text (ReaderT LCIState IO) a

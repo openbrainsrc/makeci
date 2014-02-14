@@ -59,8 +59,8 @@ routes =  do
     mapM_ build [ p | p <- projs, repoName p == pNm]
 
   get "/" $ do
-    jobs <- getJobQueue >>= mapM jobRow
-    done_jobs <- getJobsDone >>= mapM (fmap renderHtml . jobDoneRow)
+    jobs <- getJobQueue >>= mapM (fmap renderHtml . jobRow)
+    done_jobs <- getJobsDone >>= mapM (fmap renderHtml . jobRow)
     projects <- withState projects $ mapM projRow
     let mreload = if null jobs
                      then ""

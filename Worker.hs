@@ -34,11 +34,16 @@ build proj = do
   jid <- freshId
   status <- atomically $ newTVar Pending
   out <- atomically $ newTVar (mempty)
-  let job = Job proj jid status out
+
+  now <- liftIO $ getCurrentTime
+  gitres <- liftIO $ psh ("/tmp/"++repoName proj) ("git log --oneline -1")
+  let (hash, commit) = case gitres of 
+             Left err -> ("unknown", "unknown")
+             Right s -> span (/=' ') s
+                        
+  let job = Job proj jid hash  commit now status out
   withState jobQueue $ \jqtv -> do
        void $ modifyTVar jqtv (job:)  
-
-
 
 
 backworker :: TVar [Job] -> TVar [Job] -> IO ()
@@ -53,7 +58,7 @@ backworker q done = do
    STM.atomically $ STM.modifyTVar done (job:)
    backworker q done
                                 
-runBuild job@(Job prj jid statusTV outTV) =  do 
+runBuild job@(Job prj jid _ _ _ statusTV outTV) =  do 
     STM.atomically $ writeTVar statusTV Pulling
     pull prj
     STM.atomically $ writeTVar statusTV Building
@@ -73,21 +78,12 @@ runBuild job@(Job prj jid statusTV outTV) =  do
                             writeTVar statusTV TestFailure
                          Right sresS -> do
                             extraOutput <- getExtraOutput sresS
-                            success <- getSuccess prj
+                            now <- liftIO $ getCurrentTime
                             STM.atomically $ do
                               writeTVar outTV $ do H.pre $ preEscapedString resS
                                                    H.pre $ preEscapedString sresS
                                                    extraOutput
-                              writeTVar statusTV success
-
-getSuccess (Project _ nm) = liftIO $ do
-  now <- getCurrentTime
-  gitres <- psh ("/tmp/"++nm) ("git log --oneline -1")
-  return $ case gitres of 
-             Left err -> Success "unknown" "unknown" now
-             Right s -> let (hash, commit) = span (/=' ') s
-                        in Success hash (drop 1 commit) now
-  
+                              writeTVar statusTV $ Success now
 
 getExtraOutput sresS = do
   let files = catMaybes $ map (stripPrefix "file://") $ lines sresS

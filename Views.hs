@@ -10,25 +10,18 @@ import Control.Concurrent.STM hiding (modifyTVar, atomically)
 import Data.Monoid
 import Types
 import Utils
+import qualified Data.Time.Format as DTF
+import System.Locale (defaultTimeLocale)
+import Data.Time
 
-jobRow (Job (Project u r) id statusTV outTV) = do
-    status <- atomically $ readTVar statusTV
-    return $ TL.concat ["<tr><td>#", tshow id, 
-                       "</td><td>", TL.pack u, 
-                       "/", TL.pack r,"</td><td><a href=\"/job/",
-                       tshow id,"\">",tshow status,"</a></td></tr>"]
-jobDoneRow (Job (Project u r) id statusTV outTV) = do
+jobRow (Job (Project u r) id hash commit start statusTV outTV) = do
     status <- atomically $ readTVar statusTV
     return $ tr $ do td $ toHtml $ "#" <> tshow id
                      td $ toHtml u >> "/" >> toHtml r
-                     case status of
-                       Success hash commit time
-                         -> do td $ H.a ! A.href (H.toValue $ "/job/"++show id) $ toHtml (show time)
-                               td $ toHtml hash
-                               td $ toHtml commit
-                       _ -> do td $ H.a ! A.href (H.toValue $ "/job/"++show id) $ toHtml (show status)
-                               td ""
-                               td ""
+                     td $ showDateAndTime start
+                     td $ toHtml hash
+                     td $ H.a ! A.href (H.toValue $ "/job/"++show id) $ toHtml commit
+                     td $ showStatus status
 
 jobDisp job = do
   htbody <- atomically $ readTVar $ jobOutput job
@@ -38,11 +31,11 @@ jobDisp job = do
      H.div ! A.class_ "container" $ do
        H.div ! A.class_ "row" $ do
          H.div ! A.class_ "span12" $ do
-            H.h3 $ H.toHtml $ userName (jobProj job) 
-                              ++ "/" 
-                              ++ repoName (jobProj job)
-                              ++ ": "
-                              ++ show  status
+            H.h3 $ do H.toHtml $ userName (jobProj job) 
+                                 ++ "/" 
+                                 ++ repoName (jobProj job)
+                                 ++ ": "
+                      showStatus status
             htbody
 
 projRow (Project u r) 
@@ -62,3 +55,12 @@ template title body_html = H.docTypeHtml $ do
           H.script ! A.src "http://netdna.bootstrapcdn.com/twitter-bootstrap/2.3.2/js/bootstrap.min.js"
                  $ ""
         H.body body_html
+
+showStatus :: JobStatus -> H.Html
+showStatus (Success tm) = "Success at" >> showDateAndTime tm
+showStatus s = toHtml $show s
+
+showDateAndTime :: UTCTime -> H.Html
+showDateAndTime t = 
+  let spec = "%e-%b-%y %H:%M"
+  in toHtml $ DTF.formatTime defaultTimeLocale spec t

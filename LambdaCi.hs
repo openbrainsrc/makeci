@@ -64,9 +64,9 @@ routes =  do
     done_jobs <- getJobsDone >>= mapM  jobRow
     projects <- withState projects $ mapM projRow
     let mreload = if null jobs
-                     then ""
-                     else "<META HTTP-EQUIV=\"refresh\" CONTENT=\"2\">"
-    blaze $ template "MakeCI" (H.meta ! A.httpEquiv "refresh" ! A.content "2") $ do
+                     then mempty
+                     else H.meta ! A.httpEquiv "refresh" ! A.content "2"
+    blaze $ template "MakeCI" (mreload) $ do
             H.h1 "Projects"
             H.table ! A.class_ "table table-condensed" $ mconcat projects
 

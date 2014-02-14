@@ -21,7 +21,7 @@ jobRow (Job (Project u r) id hash commit start statusTV outTV) = do
                      td $ showDateAndTime start
                      td $ toHtml hash
                      td $ H.a ! A.href (H.toValue $ "/job/"++show id) $ toHtml commit
-                     td $ showStatus status
+                     td $ showStatus start status
 
 jobDisp job = do
   htbody <- atomically $ readTVar $ jobOutput job
@@ -35,7 +35,7 @@ jobDisp job = do
                                  ++ "/" 
                                  ++ repoName (jobProj job)
                                  ++ ": "
-                      showStatus status
+                      showStatus (jobSubmitTime job) status
             htbody
 
 projRow (Project u r) 
@@ -56,9 +56,15 @@ template title body_html = H.docTypeHtml $ do
                  $ ""
         H.body body_html
 
-showStatus :: JobStatus -> H.Html
-showStatus (Success tm) = "Success at" >> showDateAndTime tm
-showStatus s = toHtml $show s
+showStatus :: UTCTime -> JobStatus -> H.Html
+showStatus start (Success tm) 
+   = let durSecs = round (realToFrac $ diffUTCTime tm start)
+         durMins = durSecs `div` 60
+     in toHtml $ if durMins == 0 
+                    then "Success ("++show durSecs++"s)"
+                    else "Success ("++show durMins++"m"++show durSecs++"s)"
+
+showStatus _ s = toHtml $show s
 
 showDateAndTime :: UTCTime -> H.Html
 showDateAndTime t = 

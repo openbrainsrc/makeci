@@ -60,7 +60,7 @@ routes =  do
 
   get "/" $ do
     jobs <- getJobQueue >>= mapM jobRow
-    done_jobs <- getJobsDone >>= mapM jobRow
+    done_jobs <- getJobsDone >>= mapM (fmap renderHtml . jobDoneRow)
     projects <- withState projects $ mapM projRow
     let mreload = if null jobs
                      then ""

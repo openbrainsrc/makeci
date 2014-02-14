@@ -17,7 +17,7 @@ import qualified Data.Text as T
 import qualified Data.Text.IO as T
 import Control.Monad.Trans
 import System.Directory
-
+import Data.Time
 
 ensure_exists_or_pull proj = do
     ex <- doesDirectoryExist $ "/tmp/" ++ repoName proj
@@ -73,11 +73,21 @@ runBuild job@(Job prj jid statusTV outTV) =  do
                             writeTVar statusTV TestFailure
                          Right sresS -> do
                             extraOutput <- getExtraOutput sresS
+                            success <- getSuccess prj
                             STM.atomically $ do
                               writeTVar outTV $ do H.pre $ preEscapedString resS
                                                    H.pre $ preEscapedString sresS
                                                    extraOutput
-                              writeTVar statusTV Success
+                              writeTVar statusTV success
+
+getSuccess (Project _ nm) = liftIO $ do
+  now <- getCurrentTime
+  gitres <- psh ("/tmp/"++nm) ("git log --oneline -1")
+  return $ case gitres of 
+             Left err -> Success "unknown" "unknown" now
+             Right s -> let (hash, commit) = span (/=' ') s
+                        in Success hash (drop 1 commit) now
+  
 
 getExtraOutput sresS = do
   let files = catMaybes $ map (stripPrefix "file://") $ lines sresS

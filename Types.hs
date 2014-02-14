@@ -11,7 +11,7 @@ import Text.Blaze.Html.Renderer.Text (renderHtml)
 
 import Control.Concurrent.STM hiding (modifyTVar, atomically)
 import Utils
-
+import Data.Time
 
 
 data Project 
@@ -34,7 +34,11 @@ data Job
 instance Show Job where
   show (Job prj id _ _ ) = "Job ("++show prj++") "++show id
 
-data JobStatus = Pending | Pulling | Building | Testing | Success | BuildFailure | TestFailure
+type GitHash = String
+type GitCommit = String
+
+data JobStatus = Pending | Pulling | Building | Testing | BuildFailure | TestFailure
+                | Success GitHash GitCommit UTCTime
   deriving Show
 
 type Route a = ScottyT TL.Text (ReaderT LCIState IO) a

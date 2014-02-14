@@ -21,3 +21,4 @@ Executable lambda-ci
                   , deepseq
                   , blaze-html
                   , blaze-markup
+                  , time

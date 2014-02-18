@@ -34,6 +34,7 @@ build proj = do
   jid <- freshId
   status <- atomically $ newTVar Pending
   out <- atomically $ newTVar (mempty)
+  pull proj
 
   now <- liftIO $ getCurrentTime
   gitres <- liftIO $ psh ("/tmp/"++repoName proj) ("git log --oneline -1")
@@ -59,8 +60,6 @@ backworker q done = do
    backworker q done
                                 
 runBuild job@(Job prj jid _ _ _ statusTV outTV) =  do 
-    STM.atomically $ writeTVar statusTV Pulling
-    pull prj
     STM.atomically $ writeTVar statusTV Building
     res <- psh ("/tmp/"++repoName prj) ("make cibuild")
     case res of

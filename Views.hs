@@ -44,7 +44,7 @@ jobDisp job = do
             htbody
 
 projRow proj@(Project u r) = do
-  active_jobs <- getJobsDone
+  active_jobs <- getJobQueue
   done_jobs <- getJobsDone
   tclass <- case [job | job <- active_jobs++done_jobs, jobProj job == proj] of
                job:_ -> fmap statusToClass $ atomically $ readTVar $ jobStatus job 

@@ -51,7 +51,7 @@ projRow proj@(Project u r) = do
                [] -> return ""
   return $ tr ! A.class_ tclass $ do 
                    td $ toHtml $ u ++ "/"++ r
-                   td $ H.a ! A.class_ "btn" ! A.href (H.toValue $ "/build-now/"++r) $ "Build now"
+                   td $ H.a ! A.class_ "btn btn-mini" ! A.href (H.toValue $ "/build-now/"++r) $ "Build now"
 
 template :: String -> H.Html -> H.Html -> H.Html
 template title extra_head body_html = H.docTypeHtml $ do

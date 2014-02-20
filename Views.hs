@@ -49,8 +49,10 @@ projRow proj@(Project u r) = do
   tclass <- case [job | job <- active_jobs++done_jobs, jobProj job == proj] of
                job:_ -> fmap statusToClass $ atomically $ readTVar $ jobStatus job 
                [] -> return ""
+  let fullNm = u ++ "/"++ r
+      url = "https://github.com/"++fullNm
   return $ tr ! A.class_ tclass $ do 
-                   td $ toHtml $ u ++ "/"++ r
+                   td $ H.a ! A.href (H.toValue url) $ toHtml fullNm
                    td $ H.a ! A.class_ "btn btn-mini" ! A.href (H.toValue $ "/build-now/"++r) $ "Build now"
 
 template :: String -> H.Html -> H.Html -> H.Html

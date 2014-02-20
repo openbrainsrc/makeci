@@ -78,11 +78,8 @@ routes =  do
             H.h1 "Projects"
             H.table ! A.class_ "table table-condensed" $ mconcat projects
 
-            H.h1 "Jobs (running)"
-            H.table ! A.class_ "table table-condensed" $ mconcat jobs
-
-            H.h1 "Jobs (done)"
-            H.table ! A.class_ "table table-condensed" $ mconcat done_jobs
+            H.h1 "Jobs"
+            H.table ! A.class_ "table table-condensed" $ mconcat (jobs ++ done_jobs)
 
   get "/build-now/:projname" $ do
     pNm <- param "projname"

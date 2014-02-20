@@ -16,12 +16,16 @@ import Data.Time
 
 jobRow (Job (Project u r) id hash commit start statusTV outTV) = do
     status <- atomically $ readTVar statusTV
-    return $ tr $ do td $ toHtml $ "#" <> tshow id
+    return $ tr ! A.class_ (H.toValue $ statusToClass status) $ do 
+                     td $ toHtml $ "#" <> tshow id
                      td $ toHtml u >> "/" >> toHtml r
                      td $ showDateAndTime start
                      td $ toHtml hash
                      td $  toHtml commit
                      td $ H.a ! A.href (H.toValue $ "/job/"++show id) $ showStatus start status
+
+statusToClass (Success _) = "success"
+statusToClass st = show st 
 
 jobDisp job = do
   htbody <- atomically $ readTVar $ jobOutput job

@@ -17,7 +17,7 @@ import Data.Time
 data Project 
   =  Project { userName :: String,
                repoName :: String }
-  deriving Show
+  deriving (Show,Eq)
 
 data LCIState 
   = LCIS { projects :: [Project],

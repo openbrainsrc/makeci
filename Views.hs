@@ -16,7 +16,7 @@ import Data.Time
 
 jobRow (Job (Project u r) id hash commit start statusTV outTV) = do
     status <- atomically $ readTVar statusTV
-    return $ tr ! A.class_ (H.toValue $ statusToClass status) $ do 
+    return $ tr ! A.class_ (statusToClass status) $ do 
                      td $ toHtml $ "#" <> tshow id
                      td $ toHtml u >> "/" >> toHtml r
                      td $ showDateAndTime start
@@ -25,7 +25,10 @@ jobRow (Job (Project u r) id hash commit start statusTV outTV) = do
                      td $ H.a ! A.href (H.toValue $ "/job/"++show id) $ showStatus start status
 
 statusToClass (Success _) = "success"
-statusToClass st = show st 
+statusToClass BuildFailure = "error"
+statusToClass TestFailure = "error"
+statusToClass Pending = "warning"
+statusToClass _ = "info"
 
 jobDisp job = do
   htbody <- atomically $ readTVar $ jobOutput job
@@ -40,9 +43,15 @@ jobDisp job = do
                       showStatus (jobSubmitTime job) status
             htbody
 
-projRow (Project u r) 
-  = return $ tr $ do td $ toHtml $ u ++ "/"++ r
-                     td $ H.a ! A.href (H.toValue $ "/build-now/"++r) $ "Build now"
+projRow proj@(Project u r) = do
+  active_jobs <- getJobsDone
+  done_jobs <- getJobsDone
+  tclass <- case [job | job <- active_jobs++done_jobs, jobProj job == proj] of
+               job:_ -> fmap statusToClass $ atomically $ readTVar $ jobStatus job 
+               [] -> return ""
+  return $ tr ! A.class_ tclass $ do 
+                   td $ toHtml $ u ++ "/"++ r
+                   td $ H.a ! A.class_ "btn" ! A.href (H.toValue $ "/build-now/"++r) $ "Build now"
 
 template :: String -> H.Html -> H.Html -> H.Html
 template title extra_head body_html = H.docTypeHtml $ do

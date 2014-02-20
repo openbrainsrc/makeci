@@ -1,4 +1,4 @@
-Name:                lambda-ci
+Name:                makeci
 Version:             0.1
 Description:         Lightweight continuous integration
 License:             BSD3
@@ -8,8 +8,8 @@ Maintainer:          tomn@openbrain.org
 build-type:          Simple
 Cabal-Version:       >= 1.8
 
-Executable lambda-ci
-   Main-Is:        LambdaCi.hs
+Executable makeci
+   Main-Is:        MakeCI.hs
    ghc-options:    -threaded
    Build-depends:   base                     >= 4.6        && < 5
                   , scotty >= 0.6 && < 0.7

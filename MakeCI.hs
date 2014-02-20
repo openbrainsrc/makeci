@@ -32,13 +32,13 @@ import Utils
 import Worker
 import Views
 
-main = lambdaCI [Project "glutamate" "probably-base",
+main = makeCI   [Project "glutamate" "probably-base",
                  Project "glutamate" "matio",
                  Project "glutamate" "baysig-platform",
                  Project "ottigerb" "therapy-server",
                  Project "ottigerb" "ng-survey-server"]
 
-lambdaCI projs = do 
+makeCI projs = do 
    mapM_ ensure_exists_or_pull projs
    q <- atomically $ newTVar []
    done <- atomically $ newTVar []   

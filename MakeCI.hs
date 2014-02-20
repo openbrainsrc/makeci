@@ -32,11 +32,19 @@ import Utils
 import Worker
 import Views
 
-main = makeCI   [Project "glutamate" "probably-base",
+main = readProjects "/etc/makeci-repos" >>= makeCI 
+
+             {- [Project "glutamate" "probably-base",
                  Project "glutamate" "matio",
                  Project "glutamate" "baysig-platform",
                  Project "ottigerb" "therapy-server",
-                 Project "ottigerb" "ng-survey-server"]
+                 Project "ottigerb" "ng-survey-server"] -}
+
+readProjects :: FilePath -> IO [Project]
+readProjects = fmap (concatMap f . lines) . readFile where
+  f line = case span (/='/') line of 
+             (_, []) -> []
+             (user, '/':repo) -> [Project user repo]
 
 makeCI projs = do 
    mapM_ ensure_exists_or_pull projs

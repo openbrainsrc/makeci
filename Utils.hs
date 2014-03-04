@@ -1,3 +1,5 @@
+{-# LANGUAGE FlexibleInstances, ScopedTypeVariables #-}
+
 module Utils where
 
 import qualified Control.Concurrent.STM as STM
@@ -12,14 +14,18 @@ import Control.Exception
 import Control.DeepSeq (rnf)
 import Control.Concurrent
 import qualified Data.Text.Lazy as TL
+import           Database.Persist.Sqlite hiding (get)
+import           Database.Persist hiding (get)
 
 
-atomically :: MonadIO m => STM.STM a -> m a
-atomically = liftIO . STM.atomically
 
 tshow :: Show a => a -> TL.Text
 tshow = TL.pack . show
 
+entityToIntId :: KeyBackend b e -> Int
+entityToIntId ent = do
+  case fromPersistValue . unKey $ ent of
+    Right (uid::Int) ->  uid
 
 -- from Baysig.Utils, by Ian Ross
 

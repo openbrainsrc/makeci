@@ -8,52 +8,63 @@ import qualified Data.Text.Lazy as TL
 import qualified Text.Blaze.Html5.Attributes as A
 import Control.Concurrent.STM hiding (modifyTVar, atomically)
 import Data.Monoid
-import Types
 import Utils
 import qualified Data.Time.Format as DTF
 import System.Locale (defaultTimeLocale)
 import Data.Time
 
-jobRow (Job (Project u r) id hash commit start statusTV outTV) = do
-    status <- atomically $ readTVar statusTV
-    return $ tr ! A.class_ (statusToClass status) $ do 
-                     td $ toHtml $ "#" <> tshow id
+import Database
+import           Database.Persist hiding (get)
+
+
+jobRow (Project u r, Entity jid (Job _ hash commit start mdone status out)) = 
+    tr ! A.class_ (statusToClass status) $ do 
+                     td $ toHtml $ "#" ++ show (entityToIntId jid)
                      td $ toHtml u >> "/" >> toHtml r
                      td $ showDateAndTime start
                      td $ toHtml hash
                      td $  toHtml commit
-                     td $ H.a ! A.href (H.toValue $ "/job/"++show id) $ showStatus start status
+                     td $ H.a ! A.href (H.toValue $ "/job/"++show (entityToIntId jid)) $ showStatus start status
 
-statusToClass (Success _) = "success"
-statusToClass BuildFailure = "error"
-statusToClass TestFailure = "error"
-statusToClass Pending = "warning"
+jobQRow (Project u r) = 
+    tr ! A.class_ "warning" $ do 
+                     td $ ""
+                     td $ toHtml u >> "/" >> toHtml r
+                     td $ ""
+                     td $ ""
+                     td $ ""
+                     td $ ""
+                     
+statusToClass "Success" = "success"
+statusToClass "BuildFailure" = "error"
+statusToClass "TestFailure" = "error"
+statusToClass "Pending" = "warning"
 statusToClass _ = "info"
 
-jobDisp job = do
-  htbody <- atomically $ readTVar $ jobOutput job
-  status <- atomically $ readTVar $ jobStatus job
+jobDisp prj job = 
+  let htbody = jobOutput job
+      status = jobStatus job
 --  let outT = TL.unlines $ reverse $ map TL.pack outSS
-  return $ template (repoName $ jobProj job) (return ()) $ do
+  in template (projectRepoName prj) (return ()) $ do
     
-            H.h3 $ do H.toHtml $ userName (jobProj job) 
+            H.h3 $ do H.toHtml $ projectUserName prj
                                  ++ "/" 
-                                 ++ repoName (jobProj job)
+                                 ++ projectRepoName prj
                                  ++ ": "
-                      showStatus (jobSubmitTime job) status
+                      showStatus (jobStart job) (jobStatus job)
             htbody
 
-projRow proj@(Project u r) = do
-  active_jobs <- getJobQueue
+projRow proj@(Project u r) = 
+ {-active_jobs <- getJobQueue
   done_jobs <- getJobsDone
   tclass <- case [job | job <- active_jobs++done_jobs, jobProj job == proj] of
                job:_ -> fmap statusToClass $ atomically $ readTVar $ jobStatus job 
-               [] -> return ""
+               [] -> return "" -}
   let fullNm = u ++ "/"++ r
       url = "https://github.com/"++fullNm
-  return $ tr ! A.class_ tclass $ do 
-                   td $ H.a ! A.href (H.toValue url) $ toHtml fullNm
-                   td $ H.a ! A.class_ "btn btn-mini" ! A.href (H.toValue $ "/build-now/"++r) $ "Build now"
+  in tr $ do 
+    td $ H.a ! A.href (H.toValue url) $ toHtml fullNm
+    td $ H.a ! A.class_ "btn btn-mini" ! A.href (H.toValue $ "/build-now/"++r) $ "Build now"
 
 template :: String -> H.Html -> H.Html -> H.Html
 template title extra_head body_html = H.docTypeHtml $ do
@@ -71,15 +82,15 @@ template title extra_head body_html = H.docTypeHtml $ do
              H.div ! A.class_ "row" $ 
                H.div ! A.class_ "span12" $  body_html
 
-showStatus :: UTCTime -> JobStatus -> H.Html
-showStatus start (Success tm) 
+showStatus :: UTCTime -> Status -> H.Html
+{-showStatus start (Success) 
    = let durSecs = round (realToFrac $ diffUTCTime tm start)
          durMins = durSecs `div` 60
      in toHtml $ if durMins == 0 
                     then "Success ("++show durSecs++"s)"
-                    else "Success ("++show durMins++"m"++show (durSecs `rem` 60) ++"s)"
+                    else "Success ("++show durMins++"m"++show (durSecs `rem` 60) ++"s)" -}
 
-showStatus _ s = toHtml $show s
+showStatus _ s = toHtml $ s
 
 showDateAndTime :: UTCTime -> H.Html
 showDateAndTime t = 

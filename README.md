@@ -1,4 +1,4 @@
 lambda-ci
 =========
 
-Lightweight continuous integration
+Lightweight make-based continuous integration

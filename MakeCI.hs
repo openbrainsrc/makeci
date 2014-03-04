@@ -1,5 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
-import Web.Scotty.Trans
+import Web.Spock
 
 import Data.Monoid (mconcat)
 import qualified Data.Text as T
@@ -9,9 +9,7 @@ import System.Process
 import System.Cmd
 import System.IO
 import System.Exit
-import Control.Concurrent.STM hiding (modifyTVar, atomically)
-
-import qualified Control.Concurrent.STM as STM
+import Control.Concurrent.STM 
 import Control.Monad.Trans
 import Control.Monad
 import Control.Monad.Reader
@@ -27,10 +25,27 @@ import qualified Text.Blaze.Html5.Attributes as A
 import Text.Blaze.Html.Renderer.Text (renderHtml)
 import Text.Blaze.Internal (preEscapedText, preEscapedString)
 
-import Types
 import Utils
 import Worker
 import Views
+import Database
+import SpockWorker
+
+import           Database.Persist hiding (get)
+import           qualified Database.Persist as P 
+import           Database.Persist.Sqlite hiding (get)
+import           Database.Persist.TH
+
+type Route a = SpockM Connection SessionId (Queue ProjectId) a
+type Action a = SpockAction Connection SessionId (Queue ProjectId) a
+
+
+blaze :: H.Html -> Action ()
+blaze = html . renderHtml
+
+
+
+sessCfg = SessionCfg "pricing" (72*60*60) 42
 
 main = readProjects "/etc/makeci-repos" >>= makeCI 
 
@@ -48,29 +63,34 @@ readProjects = fmap (concatMap f . lines) . readFile where
 
 makeCI projs = do 
    mapM_ ensure_exists_or_pull projs
-   q <- atomically $ newTVar []
-   done <- atomically $ newTVar []   
-   ctr <- atomically $ newTVar 0
-   print projs
-   forkIO $ backworker q done
-   scoot $ LCIS projs ctr q done
-
---runReaderT :: ReaderT r m a -> r -> m a
-runM st ra = runReaderT ra st
-
-scoot st = scottyT 3001 (runM st) (runM st) routes
+   jobqueue <- atomically $ newTVar []
+   withSqlitePool "/tmp/makecidb" 5 $ \pool -> do 
+      workq <- spockWorker pool runBuild 
+      spock 3000 sessCfg (PCPool pool) workq routes
 
 routes  :: Route ()
 routes =  do
   post "/github-webhook/:projname" $ do
     pNm <- param "projname"
-    projs <- getProjects
-    mapM_ build [ p | p <- projs, repoName p == pNm]
+    projs <- runDB $ selectList [ProjectRepoName ==. pNm] [] 
+    q <- getState
+    mapM_ (addJob q) [ pid | Entity pid p <- projs]
 
   get "/" $ do
-    jobs <- getJobQueue >>= mapM  jobRow
-    done_jobs <- getJobsDone >>= mapM  jobRow
-    projects <- withState projects $ mapM projRow
+    projEnts <- runDB $ selectList [] []
+    let projects = map (projRow . entityVal) projEnts
+
+    qProjIds <- readQueue =<< getState
+    jobs <- fmap (map (jobQRow . entityVal )) $ runDB $ selectList [ProjectId <-. qProjIds] [] 
+
+    doneJobEnts <- runDB $ selectList [] []
+    let done_jobs = [jobRow (proj, Entity jid job ) |
+                          Entity jid job <- doneJobEnts,
+                          Entity pid proj <- projEnts,
+                          pid == jobProject job ]
+
+--getJobsDone >>= mapM  jobRow
+
     let mreload = if null jobs
                      then mempty
                      else H.meta ! A.httpEquiv "refresh" ! A.content "2"
@@ -81,19 +101,19 @@ routes =  do
             H.h1 "Jobs"
             H.table ! A.class_ "table table-condensed" $ mconcat (jobs ++ done_jobs)
 
-  get "/build-now/:projname" $ do
-    pNm <- param "projname"
-    projs <- getProjects
-    mapM_ build [ p | p <- projs, repoName p == pNm]
+  get "/build-now/:projid" $ do
+    pid <- param "projid"
+    q <- getState
+    addJob q pid 
     redirect "/"   
 
   get "/job/:jobid" $ do
     jobid <- param "jobid"
-    jobs <- liftM2 (++) getJobQueue getJobsDone
-    case [job | job <- jobs, jobId job == jobid] of
-      [] -> html $ "no job " <> tshow jobid
-      found:_  -> do jobdisp <-  jobDisp found
-                     blaze jobdisp
+    mjob <- runDB $ P.get jobid
+    case mjob of
+      Nothing -> html $ "no job " <> tshow jobid
+      Just job -> do Just proj <- runDB $ P.get (jobProject job)
+                     blaze $ jobDisp proj job
 
 
 

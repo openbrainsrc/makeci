@@ -6,7 +6,6 @@ import Text.Blaze.Html5 (toHtml, td, tr)
 import Text.Blaze.Html5 ((!))
 import qualified Data.Text.Lazy as TL
 import qualified Text.Blaze.Html5.Attributes as A
-import Control.Concurrent.STM hiding (modifyTVar, atomically)
 import Data.Monoid
 import Utils
 import qualified Data.Time.Format as DTF
@@ -14,7 +13,7 @@ import System.Locale (defaultTimeLocale)
 import Data.Time
 
 import Database
-import           Database.Persist hiding (get)
+import Database.Persist hiding (get)
 
 
 jobRow (Project u r, Entity jid (Job _ hash commit start mdone status out)) = 
@@ -24,7 +23,7 @@ jobRow (Project u r, Entity jid (Job _ hash commit start mdone status out)) =
                      td $ showDateAndTime start
                      td $ toHtml hash
                      td $ toHtml commit
-                     td $ H.a ! A.href (H.toValue $ "/job/"++show (entityToIntId jid)) $ showStatus start status
+                     td $ H.a ! A.href (H.toValue $ "/job/"++show (entityToIntId jid)) $ toHtml status
 
 jobQRow (Job _ hash commit start mdone status out) = 
     tr ! A.class_ "warning" $ do 
@@ -33,7 +32,8 @@ jobQRow (Job _ hash commit start mdone status out) =
                      td $ showDateAndTime start
                      td $ toHtml hash
                      td $ toHtml commit
-                     td $ toHtml $ showStatus start status
+                     td $ toHtml status
+
 statusToClass "Success" = "success"
 statusToClass "BuildFailure" = "error"
 statusToClass "TestFailure" = "error"
@@ -46,19 +46,14 @@ jobDisp prj job =
 --  let outT = TL.unlines $ reverse $ map TL.pack outSS
   in template (projectRepoName prj) (return ()) $ do
     
-            H.h3 $ do H.toHtml $ projectUserName prj
+            H.h3 $ do toHtml $ projectUserName prj
                                  ++ "/" 
                                  ++ projectRepoName prj
                                  ++ ": "
-                      showStatus (jobStart job) (jobStatus job)
+                      toHtml $ jobStatus job
             htbody
 
 projRow (Entity pid proj@(Project u r)) = 
- {-active_jobs <- getJobQueue
-  done_jobs <- getJobsDone
-  tclass <- case [job | job <- active_jobs++done_jobs, jobProj job == proj] of
-               job:_ -> fmap statusToClass $ atomically $ readTVar $ jobStatus job 
-               [] -> return "" -}
   let fullNm = u ++ "/"++ r
       url = "https://github.com/"++fullNm
   in tr $ do 
@@ -80,16 +75,6 @@ template title extra_head body_html = H.docTypeHtml $ do
            H.div ! A.class_ "container" $ 
              H.div ! A.class_ "row" $ 
                H.div ! A.class_ "span12" $  body_html
-
-showStatus :: UTCTime -> Status -> H.Html
-{-showStatus start (Success) 
-   = let durSecs = round (realToFrac $ diffUTCTime tm start)
-         durMins = durSecs `div` 60
-     in toHtml $ if durMins == 0 
-                    then "Success ("++show durSecs++"s)"
-                    else "Success ("++show durMins++"m"++show (durSecs `rem` 60) ++"s)" -}
-
-showStatus _ s = toHtml $ s
 
 showDateAndTime :: UTCTime -> H.Html
 showDateAndTime t = 

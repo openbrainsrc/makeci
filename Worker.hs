@@ -4,7 +4,6 @@ module Worker where
 
 import Utils
 
-import qualified Control.Concurrent.STM as STM
 import Data.Maybe
 import Data.List (stripPrefix)
 import Text.Blaze.Internal (preEscapedText, preEscapedString)
@@ -40,10 +39,6 @@ pull proj = do
   liftIO $ system $ "cd /tmp/" ++ nm ++ " && git pull"  
 
 
---runBuild :: ProjectId -> WorkerM conn ()
-
-
-  
 runBuild jobId =  do
   -- TODO we really need to be in some error monad here...
   Just job <- runDBw $ get jobId

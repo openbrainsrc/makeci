@@ -2,7 +2,6 @@
 
 module Utils where
 
-import qualified Control.Concurrent.STM as STM
 import Control.Monad.Trans
 import Control.Monad
 import System.Process

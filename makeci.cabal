@@ -30,3 +30,4 @@ Executable makeci
                   , resourcet
                   , monad-logger
                   , resource-pool
+                  , pool-conduit

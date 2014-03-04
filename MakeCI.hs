@@ -17,8 +17,6 @@ import Data.Monoid
 import Control.Concurrent
 
 import Data.Maybe
-import Data.List
-
 import qualified Text.Blaze.Html5 as H
 import Text.Blaze.Html5 ((!))
 import qualified Text.Blaze.Html5.Attributes as A
@@ -45,7 +43,7 @@ blaze = html . renderHtml
 
 
 
-sessCfg = SessionCfg "pricing" (72*60*60) 42
+sessCfg = SessionCfg "makeci" (72*60*60) 42
 
 main = readProjects "/etc/makeci-repos" >>= makeCI 
 
@@ -63,10 +61,14 @@ readProjects = fmap (concatMap f . lines) . readFile where
 
 makeCI projs = do 
    mapM_ ensure_exists_or_pull projs
+   
    jobqueue <- atomically $ newTVar []
-   withSqlitePool "/tmp/makecidb" 5 $ \pool -> do 
+   withSqlitePool ":memory:" 5 $ \pool -> do 
+      runDB_io pool $ runMigration migrateAll
+      runDB_io pool $ mapM_ insert projs
       workq <- spockWorker pool runBuild 
-      spock 3000 sessCfg (PCPool pool) workq routes
+      spock 2999 sessCfg (PCPool pool) workq routes
+
 
 routes  :: Route ()
 routes =  do
@@ -78,7 +80,7 @@ routes =  do
 
   get "/" $ do
     projEnts <- runDB $ selectList [] []
-    let projects = map (projRow . entityVal) projEnts
+    let projects = map projRow projEnts
 
     qProjIds <- readQueue =<< getState
     jobs <- fmap (map (jobQRow . entityVal )) $ runDB $ selectList [ProjectId <-. qProjIds] [] 

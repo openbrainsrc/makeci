@@ -54,7 +54,7 @@ jobDisp prj job =
                       showStatus (jobStart job) (jobStatus job)
             htbody
 
-projRow proj@(Project u r) = 
+projRow (Entity pid proj@(Project u r)) = 
  {-active_jobs <- getJobQueue
   done_jobs <- getJobsDone
   tclass <- case [job | job <- active_jobs++done_jobs, jobProj job == proj] of
@@ -64,7 +64,7 @@ projRow proj@(Project u r) =
       url = "https://github.com/"++fullNm
   in tr $ do 
     td $ H.a ! A.href (H.toValue url) $ toHtml fullNm
-    td $ H.a ! A.class_ "btn btn-mini" ! A.href (H.toValue $ "/build-now/"++r) $ "Build now"
+    td $ H.a ! A.class_ "btn btn-mini" ! A.href (H.toValue $ "/build-now/"++show (entityToIntId pid)) $ "Build now"
 
 template :: String -> H.Html -> H.Html -> H.Html
 template title extra_head body_html = H.docTypeHtml $ do

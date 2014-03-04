@@ -1,4 +1,4 @@
-lambda-ci
+makeci
 =========
 
-Lightweight make-based continuous integration
+Lightweight Make-based continuous integration

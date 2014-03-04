@@ -17,6 +17,7 @@ import Data.Time
 
 import Control.Monad.Logger
 import Control.Monad.Trans.Resource
+import Data.Conduit.Pool
 import Web.Spock
 import Web.Scotty
 import Text.Blaze.Html5
@@ -53,7 +54,12 @@ runDBw action =
     runQueryW $ \conn ->
         runResourceT $ runNoLoggingT $ runSqlConn action conn
 
+runDB_io pool action = 
+      withResource pool $ \conn -> 
+         runResourceT $ runNoLoggingT $ runSqlConn action conn 
+
 instance Parsable (KeyBackend SqlBackend e) where
   parseParam t = case readsPrec 5 $ T.unpack t of 
                    [] -> Left $ "Cannot parse id from " `T.append` t
                    (x,_):_ -> Right $ Key $ toPersistValue (x::Int)
+

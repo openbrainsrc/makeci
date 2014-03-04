@@ -63,11 +63,18 @@ makeCI projs = do
    mapM_ ensure_exists_or_pull projs
    
    jobqueue <- atomically $ newTVar []
-   withSqlitePool ":memory:" 5 $ \pool -> do 
+   withSqlitePool "/tmp/makecidb" 5 $ \pool -> do 
       runDB_io pool $ runMigration migrateAll
-      runDB_io pool $ mapM_ insert projs
+      runDB_io pool $ updateProjects projs
       workq <- spockWorker pool runBuild 
       spock 2999 sessCfg (PCPool pool) workq routes
+
+updateProjects cfgProjs = do
+   dbProjs <- selectList [] []
+   let toDelete = [dbEnt | dbEnt <- dbProjs, not $ entityVal dbEnt `elem` cfgProjs]
+   let toInsert = [proj | proj <- cfgProjs,  not $ proj `elem` map entityVal dbProjs]
+   mapM_ (P.delete . entityKey) toDelete
+   mapM_ insert toInsert
 
 
 routes  :: Route ()
@@ -83,6 +90,9 @@ routes =  do
     let projects = map projRow projEnts
 
     qProjIds <- readQueue =<< getState
+    
+    liftIO $ print qProjIds
+
     jobs <- fmap (map (jobQRow . entityVal )) $ runDB $ selectList [ProjectId <-. qProjIds] [] 
 
     doneJobEnts <- runDB $ selectList [] []
@@ -93,7 +103,7 @@ routes =  do
 
 --getJobsDone >>= mapM  jobRow
 
-    let mreload = if null jobs
+    let mreload = if null jobs && all (done . jobStatus . entityVal) doneJobEnts
                      then mempty
                      else H.meta ! A.httpEquiv "refresh" ! A.content "2"
     blaze $ template "MakeCI" (mreload) $ do
@@ -116,7 +126,3 @@ routes =  do
       Nothing -> html $ "no job " <> tshow jobid
       Just job -> do Just proj <- runDB $ P.get (jobProject job)
                      blaze $ jobDisp proj job
-
-
-
-

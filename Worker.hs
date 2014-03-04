@@ -81,3 +81,8 @@ getExtraOutput sresS = liftIO $ do
   fmap (preEscapedText . mconcat) $ mapM T.readFile files
 
 pre = H.pre . preEscapedString
+
+done "Success" = True
+done "TestFailure" = True
+done "BuildFailure" = True
+done _ = False

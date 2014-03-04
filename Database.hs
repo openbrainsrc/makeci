@@ -28,6 +28,7 @@ share [mkPersist sqlSettings, mkMigrate "migrateAll"] [persistLowerCase|
 Project
     userName String
     repoName String
+    deriving Eq
 Job 
     project ProjectId
     gitHash String
@@ -48,15 +49,15 @@ type Status = String
 
 runDB action =
     runQuery $ \conn ->
-        runResourceT $ runNoLoggingT $ runSqlConn action conn
+        runResourceT $ runStderrLoggingT $ runSqlConn action conn
 
 runDBw action =
     runQueryW $ \conn ->
-        runResourceT $ runNoLoggingT $ runSqlConn action conn
+        runResourceT $ runStderrLoggingT $ runSqlConn action conn
 
 runDB_io pool action = 
       withResource pool $ \conn -> 
-         runResourceT $ runNoLoggingT $ runSqlConn action conn 
+         runResourceT $ runStderrLoggingT $ runSqlConn action conn 
 
 instance Parsable (KeyBackend SqlBackend e) where
   parseParam t = case readsPrec 5 $ T.unpack t of 

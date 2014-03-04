@@ -119,7 +119,7 @@ startBuild projectId = do
     let (hash, commit) = case gitres of 
              Left err -> ("unknown", "unknown")
              Right s -> span (/=' ') s             
-    jobId <- runDB $ insert $ Job projectId hash commit now Nothing "Building" ("")
+    jobId <- runDB $ insert $ Job projectId hash commit now Nothing "Pending" ("")
 
     q <- getState
     addJob q jobId

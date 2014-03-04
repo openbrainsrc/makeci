@@ -49,6 +49,8 @@ continueBuild jobId job prj = do
   
     let updateJ = runDBw . update jobId
 
+    updateJ [JobStatus =. "Building"]
+
     res <- liftIO $ psh ("/tmp/"++projectRepoName prj) ("make cibuild")
     case res of
       Left errS -> updateJ [JobOutput =. pre errS,

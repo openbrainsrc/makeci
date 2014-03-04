@@ -23,18 +23,17 @@ jobRow (Project u r, Entity jid (Job _ hash commit start mdone status out)) =
                      td $ toHtml u >> "/" >> toHtml r
                      td $ showDateAndTime start
                      td $ toHtml hash
-                     td $  toHtml commit
+                     td $ toHtml commit
                      td $ H.a ! A.href (H.toValue $ "/job/"++show (entityToIntId jid)) $ showStatus start status
 
-jobQRow (Project u r) = 
+jobQRow (Job _ hash commit start mdone status out) = 
     tr ! A.class_ "warning" $ do 
                      td $ ""
-                     td $ toHtml u >> "/" >> toHtml r
                      td $ ""
-                     td $ ""
-                     td $ ""
-                     td $ ""
-                     
+                     td $ showDateAndTime start
+                     td $ toHtml hash
+                     td $ toHtml commit
+                     td $ toHtml $ showStatus start status
 statusToClass "Success" = "success"
 statusToClass "BuildFailure" = "error"
 statusToClass "TestFailure" = "error"

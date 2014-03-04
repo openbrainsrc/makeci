@@ -41,21 +41,17 @@ pull proj = do
 
 
 --runBuild :: ProjectId -> WorkerM conn ()
-runBuild projectId =  do
-    Just prj <- runDBw $ get projectId
 
-    pull prj
 
-    now <- liftIO $ getCurrentTime
-    gitres <- liftIO $ psh ("/tmp/"++projectRepoName prj) ("git log --oneline -1")
-
-    let (hash, commit) = case gitres of 
-             Left err -> ("unknown", "unknown")
-             Right s -> span (/=' ') s             
   
-    -- create job 
-    jobId <- runDBw $ insert $ Job projectId hash commit now Nothing "Building" ("")
+runBuild jobId =  do
+  -- TODO we really need to be in some error monad here...
+  Just job <- runDBw $ get jobId
+  Just prj <- runDBw $ get $ jobProject job
+  continueBuild jobId job prj
 
+continueBuild jobId job prj = do
+  
     let updateJ = runDBw . update jobId
 
     res <- liftIO $ psh ("/tmp/"++projectRepoName prj) ("make cibuild")

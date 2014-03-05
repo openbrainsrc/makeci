@@ -6,6 +6,8 @@ import Control.Monad.Trans
 import Control.Monad
 import Data.Monoid
 import Data.Time
+import System.Directory
+import System.Environment
 
 import qualified Text.Blaze.Html5 as H
 import Text.Blaze.Html5 ((!))
@@ -33,18 +35,23 @@ blaze = html . renderHtml
 
 sessCfg = SessionCfg "makeci" (72*60*60) 42
 
-main = readProjects "/etc/makeci-repos" >>= makeCI 
+main = do 
+   args <- getArgs
+   case args of 
+     [] -> readProjects "/etc/makeci-repos" >>= makeCI 
+     file:_ -> readProjects file >>= makeCI 
 
 
-makeCI projs = do 
+makeCI projects = do 
     withSqlitePool "/tmp/makecidb" 5 $ \pool -> do 
-      runDB_io pool $ runMigration migrateAll
-      runDB_io pool $ updateProjects projs
-      spock 3001 sessCfg (PCPool pool) () routes
+      spock 3001 sessCfg (PCPool pool) () (routes projects)
 
 
-routes  :: Route ()
-routes =  do
+routes  :: [Project] -> Route ()
+routes projects =  do
+  runDB $ runMigration migrateAll
+  runDB $ updateProjects projects
+
   worker <- newWorker 100 runBuild workErrH
   post "/github-webhook/:projname" $ do
     pNm <- param "projname"
@@ -99,10 +106,24 @@ updateProjects cfgProjs = do
 
 
 readProjects :: FilePath -> IO [Project]
-readProjects = fmap (concatMap f . lines) . readFile where
-  f line = case span (/='/') line of 
-             (_, []) -> []
-             (user, '/':repo) -> [Project user repo]
+readProjects file = do
+
+  let f line = case span (/='/') line of 
+                 (_, []) -> []
+                 (user, '/':repo) -> [Project user repo]
+
+  ex <- doesFileExist file 
+  if not ex
+     then help file >> fail "No configuration file"
+     else fmap (concatMap f . lines) $ readFile file 
+
+help file = putStrLn $ unlines 
+  ["Cannot open configuration file "++file, "", 
+   "This file should have a {GitHub username}/{Repository name} on each line","",
+   "for example:","",
+   "glutamate/probably-base",
+   "openbrainsrc/debcd",""]
+   
 
 startBuild worker projectId = do
 

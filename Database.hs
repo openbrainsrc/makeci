@@ -49,9 +49,6 @@ runDB action =
     runQuery $ \conn ->
         runResourceT $ runStderrLoggingT $ runSqlConn action conn 
 
-runDB_io pool action = 
-      withResource pool $ \conn -> 
-         runResourceT $ runStderrLoggingT $ runSqlConn action conn 
 
 instance Parsable (KeyBackend SqlBackend e) where
   parseParam t = case readsPrec 5 $ T.unpack t of 

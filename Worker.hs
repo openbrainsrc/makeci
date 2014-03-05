@@ -20,10 +20,10 @@ import Data.Time
 
 import Database
 import           Database.Persist
+import Database.Persist.Sqlite hiding (get)
 
-import Web.Spock (getState)
 
-import SpockWorker
+import Web.Spock.Worker
 
 gitUrl (Project user repo) = "git@github.com:"++user++"/"++repo++".git"
 
@@ -39,35 +39,40 @@ pull proj = do
   liftIO $ system $ "cd /tmp/" ++ nm ++ " && git pull"  
 
 
+runBuild :: WorkHandler Connection sess st JobId
 runBuild jobId =  do
   -- TODO we really need to be in some error monad here...
-  Just job <- runDBw $ get jobId
-  Just prj <- runDBw $ get $ jobProject job
+  Just job <- runDB $ get jobId
+  Just prj <- runDB $ get $ jobProject job
   continueBuild jobId job prj
 
 continueBuild jobId job prj = do
   
-    let updateJ = runDBw . update jobId
+    let updateJ = runDB . update jobId
 
     updateJ [JobStatus =. "Building"]
 
     res <- liftIO $ psh ("/tmp/"++projectRepoName prj) ("make cibuild")
     case res of
-      Left errS -> updateJ [JobOutput =. pre errS,
-                            JobStatus =. "BuildFailure"]
+      Left errS -> do updateJ [JobOutput =. pre errS,
+                               JobStatus =. "BuildFailure"]
+                      return WorkComplete
       Right resS -> do updateJ [JobOutput =. pre resS,
                                 JobStatus =. "Testing"]  
                        res <- liftIO $ psh ("/tmp/"++projectRepoName prj) ("make citest")
                        case res of
                          Left terrS -> do
                             updateJ [JobOutput =. (pre resS >> pre terrS),
-                                     JobStatus =. "TestFailure"]  
+                                     JobStatus =. "TestFailure"]
+                            return WorkComplete
                          Right sresS -> do
                             extraOutput <- getExtraOutput sresS
                             now <- liftIO $ getCurrentTime
                             updateJ [JobOutput =. (pre resS >> pre sresS >> extraOutput),
                                      JobStatus =. "Success",
                                      JobFinished =. Just now]
+                            return WorkComplete
+
 
 getExtraOutput sresS = liftIO $ do
   let files = catMaybes $ map (stripPrefix "file://") $ lines sresS

@@ -1,5 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 import Web.Spock
+import Web.Spock.Worker
 
 import Control.Monad.Trans
 import Control.Monad
@@ -19,11 +20,10 @@ import Utils
 import Worker
 import Views
 import Database
-import SpockWorker
 
 
-type Route a = SpockM Connection SessionId (Queue JobId) a
-type Action a = SpockAction Connection SessionId (Queue JobId) a
+type Route a = SpockM Connection SessionId () a
+type Action a = SpockAction Connection SessionId () a
 
 
 blaze :: H.Html -> Action ()
@@ -40,32 +40,29 @@ makeCI projs = do
     withSqlitePool "/tmp/makecidb" 5 $ \pool -> do 
       runDB_io pool $ runMigration migrateAll
       runDB_io pool $ updateProjects projs
-      workq <- spockWorker pool runBuild 
-      spock 3001 sessCfg (PCPool pool) workq routes
+      spock 3001 sessCfg (PCPool pool) () routes
 
 
 routes  :: Route ()
 routes =  do
+  worker <- newWorker 100 runBuild workErrH
   post "/github-webhook/:projname" $ do
     pNm <- param "projname"
     projs <- runDB $ selectList [ProjectRepoName ==. pNm] [] 
-    mapM_ startBuild [ pid | Entity pid p <- projs]
+    mapM_ (startBuild worker) [ pid | Entity pid p <- projs]
 
   get "/" $ do
     projEnts <- runDB $ selectList [] []
     let projects = map projRow projEnts
 
-    qJobIds <- readQueue =<< getState
-    
-    qjobs <- fmap (map (jobQRow . entityVal )) $ runDB $ selectList [JobId <-. qJobIds] [] 
-
     dbJobEnts <- runDB $ selectList [] [Desc JobId]
+
     let dbjobs = [jobRow (proj, Entity jid job ) |
                           Entity jid job <- dbJobEnts,
                           Entity pid proj <- projEnts,
                           pid == jobProject job ]
 
-    let mreload = if null qjobs && all (done . jobStatus . entityVal) dbJobEnts
+    let mreload = if all (done . jobStatus . entityVal) dbJobEnts
                      then mempty
                      else H.meta ! A.httpEquiv "refresh" ! A.content "2"
 
@@ -74,11 +71,11 @@ routes =  do
             H.table ! A.class_ "table table-condensed" $ mconcat projects
 
             H.h1 "Jobs"
-            H.table ! A.class_ "table table-condensed" $ mconcat (qjobs ++ dbjobs)
+            H.table ! A.class_ "table table-condensed" $ mconcat (dbjobs)
 
   get "/build-now/:projid" $ do
     pid <- param "projid"
-    startBuild pid
+    startBuild worker pid
     redirect "/"   
 
   get "/job/:jobid" $ do
@@ -107,7 +104,7 @@ readProjects = fmap (concatMap f . lines) . readFile where
              (_, []) -> []
              (user, '/':repo) -> [Project user repo]
 
-startBuild projectId = do
+startBuild worker projectId = do
 
     Just prj <- runDB $ P.get projectId
 
@@ -121,5 +118,6 @@ startBuild projectId = do
              Right s -> span (/=' ') s             
     jobId <- runDB $ insert $ Job projectId hash commit now Nothing "Pending" ("")
 
-    q <- getState
-    addJob q jobId
+    addWork WorkNow jobId worker
+
+workErrH _ _ = return WorkError

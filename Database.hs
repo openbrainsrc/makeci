@@ -22,7 +22,6 @@ import Web.Spock
 import Web.Scotty
 import Text.Blaze.Html5
 import qualified Data.Text.Lazy as T
-import SpockWorker
 
 share [mkPersist sqlSettings, mkMigrate "migrateAll"] [persistLowerCase|
 Project
@@ -46,14 +45,9 @@ Session
 
 type Status = String
 
-
 runDB action =
     runQuery $ \conn ->
-        runResourceT $ runStderrLoggingT $ runSqlConn action conn
-
-runDBw action =
-    runQueryW $ \conn ->
-        runResourceT $ runStderrLoggingT $ runSqlConn action conn
+        runResourceT $ runStderrLoggingT $ runSqlConn action conn 
 
 runDB_io pool action = 
       withResource pool $ \conn -> 

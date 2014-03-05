@@ -12,7 +12,8 @@ Executable makeci
    Main-Is:        MakeCI.hs
    ghc-options:    -threaded
    Build-depends:   base                     >= 4.6        && < 5
-                  , Spock == 0.4.2.0
+                  , Spock == 0.4.2.3
+                  , Spock-worker
                   , scotty
                   , text
                   , directory

@@ -23,8 +23,6 @@ import           Database.Persist
 import Database.Persist.Sqlite hiding (get)
 
 import Web.Spock.Worker
-import Control.Exception
-import Control.Exception.Lifted as EX
 
 gitUrl (Project user repo) = "git@github.com:"++user++"/"++repo++".git"
 
@@ -41,17 +39,30 @@ pull proj = do
 
 
 runBuild :: WorkHandler Connection sess st JobId
-runBuild jobId =  EX.catch (do
+runBuild jobId =  do
   -- TODO we really need to be in some error monad here...
   Just job <- runDB $ get jobId
   Just prj <- runDB $ get $ jobProject job
-  continueBuild jobId job prj) (\(e::SomeException) -> return WorkError)
+  continueBuild jobId job prj
 
 continueBuild jobId job prj = do
   
     let updateJ = runDB . update jobId
 
-    updateJ [JobStatus =. "Building"]
+    updateJ [JobStatus =. "Pulling"]
+    
+    pull prj
+
+    gitres <- liftIO $ psh ("/tmp/"++projectRepoName prj) ("git log --oneline -1")
+
+    let (hash, commit) = case gitres of 
+             Left err -> ("unknown", "unknown")
+             Right s -> span (/=' ') s             
+
+    
+    updateJ [JobStatus =. "Building",
+             JobGitHash =. hash,
+             JobGitCommit =. commit]
 
     res <- liftIO $ psh ("/tmp/"++projectRepoName prj) ("make cibuild")
     case res of

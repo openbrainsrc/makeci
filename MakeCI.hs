@@ -52,7 +52,8 @@ routes projects =  do
   runDB $ runMigration migrateAll
   runDB $ updateProjects projects
 
-  worker <- newWorker 100 runBuild workErrH
+  worker <- newWorker 10 runBuild workErrH
+
   post "/github-webhook/:projname" $ do
     pNm <- param "projname"
     projs <- runDB $ selectList [ProjectRepoName ==. pNm] [] 
@@ -129,16 +130,10 @@ startBuild worker projectId = do
 
     Just prj <- runDB $ P.get projectId
 
-    pull prj
-
     now <- liftIO $ getCurrentTime
-    gitres <- liftIO $ psh ("/tmp/"++projectRepoName prj) ("git log --oneline -1")
 
-    let (hash, commit) = case gitres of 
-             Left err -> ("unknown", "unknown")
-             Right s -> span (/=' ') s             
-    jobId <- runDB $ insert $ Job projectId hash commit now Nothing "Pending" ("")
+    jobId <- runDB $ insert $ Job projectId "" "" now Nothing "Pending" ("")
 
     addWork WorkNow jobId worker
 
-workErrH _ _ = return WorkError
+workErrH _ _ = do return WorkError

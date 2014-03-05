@@ -12,7 +12,7 @@ Executable makeci
    Main-Is:        MakeCI.hs
    ghc-options:    -threaded
    Build-depends:   base                     >= 4.6        && < 5
-                  , Spock == 0.4.2.3
+                  , Spock == 0.4.2.4
                   , Spock-worker
                   , scotty
                   , text
@@ -32,3 +32,5 @@ Executable makeci
                   , monad-logger
                   , resource-pool
                   , pool-conduit
+                  , lifted-base
+                  , monad-control

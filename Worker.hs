@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings, ScopedTypeVariables, FlexibleContexts #-}
 
 module Worker where
 
@@ -22,8 +22,9 @@ import Database
 import           Database.Persist
 import Database.Persist.Sqlite hiding (get)
 
-
 import Web.Spock.Worker
+import Control.Exception
+import Control.Exception.Lifted as EX
 
 gitUrl (Project user repo) = "git@github.com:"++user++"/"++repo++".git"
 
@@ -40,11 +41,11 @@ pull proj = do
 
 
 runBuild :: WorkHandler Connection sess st JobId
-runBuild jobId =  do
+runBuild jobId =  EX.catch (do
   -- TODO we really need to be in some error monad here...
   Just job <- runDB $ get jobId
   Just prj <- runDB $ get $ jobProject job
-  continueBuild jobId job prj
+  continueBuild jobId job prj) (\(e::SomeException) -> return WorkError)
 
 continueBuild jobId job prj = do
   
@@ -84,3 +85,10 @@ done "Success" = True
 done "TestFailure" = True
 done "BuildFailure" = True
 done _ = False
+
+{-myCatch :: (MonadBase IO m, Exception e) => m a       -- ^ The computation to run
+        -> (e -> m a) -- ^ Handler to invoke if an exception is raised
+        -> m a
+myCatch a handler = liftBase $ \runInIO ->
+                    catch (runInIO a)
+                            (\e -> runInIO $ handler e) -}

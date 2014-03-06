@@ -49,6 +49,9 @@ git clone git@github.com:{user_name}/{repository_name}.git
 Thus, you will need to have SSH keys in place to access GitHub in this
 way.
 
+There is an example [upstart](http://upstart.ubuntu.com/) configuration file
+in `upstart/` if you want to run Makeci as a service under Ubuntu.
+
 ## Build configuration
 
 Makeci will try to build you repositories by running

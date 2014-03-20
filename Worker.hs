@@ -72,18 +72,16 @@ continueBuild jobId job prj = do
       Right resS -> do updateJ [JobOutput =. pre resS,
                                 JobStatus =. "Testing"]  
                        res <- liftIO $ psh ("/tmp/"++projectRepoName prj) ("make citest")
-                       case res of
-                         Left terrS -> do
-                            updateJ [JobOutput =. (pre resS >> pre terrS),
-                                     JobStatus =. "TestFailure"]
-                            return WorkComplete
-                         Right sresS -> do
-                            extraOutput <- getExtraOutput sresS
-                            now <- liftIO $ getCurrentTime
-                            updateJ [JobOutput =. (pre resS >> pre sresS >> extraOutput),
-                                     JobStatus =. "Success",
-                                     JobFinished =. Just now]
-                            return WorkComplete
+                       let tres = case res of
+                         Left terrS -> terrrS
+                         Right sresS -> sresS
+
+                       extraOutput <- getExtraOutput sresS
+                       now <- liftIO $ getCurrentTime
+                       updateJ [JobOutput =. (pre resS >> pre tres >> extraOutput),
+                                JobStatus =. "Success",
+                                JobFinished =. Just now]
+                       return WorkComplete
 
 
 getExtraOutput sresS = liftIO $ do

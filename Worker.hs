@@ -74,8 +74,8 @@ continueBuild jobId job prj = do
                                 JobStatus =. "Testing"]  
                        res <- liftIO $ psh ("/tmp/"++projectRepoName prj) ("make citest")
                        let tres = case res of
-                         Left terrS -> terrrS
-                         Right sresS -> sresS
+                                   Left terrS -> terrrS
+                                   Right sresS -> sresS
 
                        extraOutput <- getExtraOutput sresS
                        now <- liftIO $ getCurrentTime

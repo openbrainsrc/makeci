@@ -66,7 +66,8 @@ continueBuild jobId job prj = do
 
     res <- liftIO $ psh ("/tmp/"++projectRepoName prj) ("make cibuild")
     case res of
-      Left errS -> do updateJ [JobOutput =. pre errS,
+      Left errS -> do extraOutput <- getExtraOutput errS
+                      updateJ [JobOutput =. pre errS >> extraOutput,
                                JobStatus =. "BuildFailure"]
                       return WorkComplete
       Right resS -> do updateJ [JobOutput =. pre resS,

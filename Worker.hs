@@ -40,7 +40,6 @@ pull proj = do
 
 runBuild :: WorkHandler Connection sess st JobId
 runBuild jobId =  do
-  -- TODO we really need to be in some error monad here...
   Just job <- runDB $ get jobId
   Just prj <- runDB $ get $ jobProject job
   continueBuild jobId job prj
@@ -55,7 +54,7 @@ continueBuild jobId job prj = do
 
     gitres <- liftIO $ psh ("/tmp/"++projectRepoName prj) ("git log --oneline -1")
 
-    liftIO $ print gitres
+--    liftIO $ print gitres
 
     let (hash, commit) = case gitres of 
              Left err -> ("unknown", "unknown")
@@ -67,7 +66,7 @@ continueBuild jobId job prj = do
              JobGitCommit =. commit]
 
     res <- liftIO $ psh ("/tmp/"++projectRepoName prj) ("make cibuild")
-    liftIO $ print res
+  --  liftIO $ print res
     case res of
       Left errS -> do extraOutput <- getExtraOutput errS
                       updateJ [JobOutput =. (pre errS >> extraOutput),
@@ -90,7 +89,7 @@ continueBuild jobId job prj = do
 
 getExtraOutput sresS = liftIO $ do
   let files = catMaybes $ map (stripPrefix "file://") $ lines sresS
-  putStrLn $ "files with extra output" ++show files
+--  putStrLn $ "files with extra output" ++show files
   fmap (preEscapedText . mconcat) $ mapM T.readFile files
 
 pre = H.pre . preEscapedString

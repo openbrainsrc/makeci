@@ -31,6 +31,7 @@ entityToIntId ent = do
 
 psh :: String -> String -> IO (Either String String)
 psh pwd cmd =
+  myCatch $ 
   bracketOnError
   (createProcess $ (shell cmd) { std_out = CreatePipe
                                , std_err = CreatePipe
@@ -60,3 +61,6 @@ psh pwd cmd =
             forkIO $ try (restore $ C.evaluate $ rnf a) >>= putMVar res
           return (takeMVar res >>=
                   either (\ex -> throwIO (ex :: SomeException)) return)
+
+myCatch :: IO (Either String a) -> IO (Either String a)
+myCatch action = catch action $ \e -> return $ Left $ show (e :: SomeException)

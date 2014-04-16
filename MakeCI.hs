@@ -103,6 +103,7 @@ updateProjects cfgProjs = do
    mapM_ (P.delete . entityKey) toDelete
    mapM_ insert toInsert
    liftIO $  mapM_ ensure_exists_or_pull cfgProjs
+   updateWhere [JobStatus <-. ["Building", "Testing", "Pulling", "Pending"]] [JobStatus =. "BuildFailure"] 
 
 
 
@@ -136,4 +137,4 @@ startBuild worker projectId = do
 
     addWork WorkNow jobId worker
 
-workErrH _ _ = do return WorkError
+workErrH errS jobId = do return WorkError

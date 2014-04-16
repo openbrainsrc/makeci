@@ -34,7 +34,7 @@ ensure_exists_or_pull proj = do
 
 pull proj = do
   let nm = projectRepoName proj
-  
+  liftIO $ putStrLn $ "cd /tmp/" ++ nm ++ " && git pull"  
   liftIO $ system $ "cd /tmp/" ++ nm ++ " && git pull"  
 
 
@@ -55,6 +55,8 @@ continueBuild jobId job prj = do
 
     gitres <- liftIO $ psh ("/tmp/"++projectRepoName prj) ("git log --oneline -1")
 
+    liftIO $ print gitres
+
     let (hash, commit) = case gitres of 
              Left err -> ("unknown", "unknown")
              Right s -> span (/=' ') s             
@@ -65,6 +67,7 @@ continueBuild jobId job prj = do
              JobGitCommit =. commit]
 
     res <- liftIO $ psh ("/tmp/"++projectRepoName prj) ("make cibuild")
+    liftIO $ print res
     case res of
       Left errS -> do extraOutput <- getExtraOutput errS
                       updateJ [JobOutput =. (pre errS >> extraOutput),
@@ -87,6 +90,7 @@ continueBuild jobId job prj = do
 
 getExtraOutput sresS = liftIO $ do
   let files = catMaybes $ map (stripPrefix "file://") $ lines sresS
+  putStrLn $ "files with extra output" ++show files
   fmap (preEscapedText . mconcat) $ mapM T.readFile files
 
 pre = H.pre . preEscapedString

@@ -15,7 +15,7 @@ import qualified Text.Blaze.Html5.Attributes as A
 import Text.Blaze.Html.Renderer.Text (renderHtml)
 
 import Database.Persist hiding (get)
-import qualified Database.Persist as P 
+import qualified Database.Persist as P
 import Database.Persist.Sqlite hiding (get)
 
 import Utils
@@ -35,15 +35,15 @@ blaze = html . renderHtml
 
 sessCfg = SessionCfg "makeci" (72*60*60) 42
 
-main = do 
+main = do
    args <- getArgs
-   case args of 
-     [] -> readProjects "/etc/makeci-repos" >>= makeCI 
-     file:_ -> readProjects file >>= makeCI 
+   case args of
+     [] -> readProjects "/etc/makeci-repos" >>= makeCI
+     file:_ -> readProjects file >>= makeCI
 
 
-makeCI projects = do 
-    withSqlitePool "/tmp/makecidb" 5 $ \pool -> do 
+makeCI projects = do
+    withSqlitePool "/tmp/makecidb" 5 $ \pool -> do
       spock 3001 sessCfg (PCPool pool) () (routes projects)
 
 
@@ -56,14 +56,14 @@ routes projects =  do
 
   post "/github-webhook/:projname" $ do
     pNm <- param "projname"
-    projs <- runDB $ selectList [ProjectRepoName ==. pNm] [] 
+    projs <- runDB $ selectList [ProjectRepoName ==. pNm] []
     mapM_ (startBuild worker) [ pid | Entity pid p <- projs]
 
   get "/" $ do
     projEnts <- runDB $ selectList [] []
     let projects = map projRow projEnts
 
-    dbJobEnts <- runDB $ selectList [] [Desc JobId]
+    dbJobEnts <- runDB $ selectList [] [Desc JobId, LimitTo 100]
 
     let dbjobs = [jobRow (proj, Entity jid job ) |
                           Entity jid job <- dbJobEnts,
@@ -84,7 +84,7 @@ routes projects =  do
   get "/build-now/:projid" $ do
     pid <- param "projid"
     startBuild worker pid
-    redirect "/"   
+    redirect "/"
 
   get "/job/:jobid" $ do
     jobid <- param "jobid"
@@ -103,29 +103,29 @@ updateProjects cfgProjs = do
    mapM_ (P.delete . entityKey) toDelete
    mapM_ insert toInsert
    liftIO $  mapM_ ensure_exists_or_pull cfgProjs
-   updateWhere [JobStatus <-. ["Building", "Testing", "Pulling", "Pending"]] [JobStatus =. "BuildFailure"] 
+   updateWhere [JobStatus <-. ["Building", "Testing", "Pulling", "Pending"]] [JobStatus =. "BuildFailure"]
 
 
 
 readProjects :: FilePath -> IO [Project]
 readProjects file = do
 
-  let f line = case span (/='/') line of 
+  let f line = case span (/='/') line of
                  (_, []) -> []
                  (user, '/':repo) -> [Project user repo]
 
-  ex <- doesFileExist file 
+  ex <- doesFileExist file
   if not ex
      then help file >> fail "No configuration file"
-     else fmap (concatMap f . lines) $ readFile file 
+     else fmap (concatMap f . lines) $ readFile file
 
-help file = putStrLn $ unlines 
-  ["Cannot open configuration file "++file, "", 
+help file = putStrLn $ unlines
+  ["Cannot open configuration file "++file, "",
    "This file should have a {GitHub username}/{Repository name} on each line","",
    "for example:","",
    "glutamate/probably-base",
    "openbrainsrc/debcd",""]
-   
+
 
 startBuild worker projectId = do
 

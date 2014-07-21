@@ -34,9 +34,10 @@ ensure_exists_or_pull proj = do
 
 pull proj = do
   let nm = projectRepoName proj
-  liftIO $ putStrLn $ "cd /tmp/" ++ nm ++ " && git pull"  
-  liftIO $ system $ "cd /tmp/" ++ nm ++ " && git pull"  
-
+      cmd = "cd /tmp/" ++ nm ++ " && git checkout HEAD~1 && git branch -D master && git fetch && git checkout -b master origin/master"
+  liftIO $ do
+    putStrLn cmd
+    system cmd
 
 runBuild :: WorkHandler Connection sess st JobId
 runBuild jobId =  do

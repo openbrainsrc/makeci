@@ -32,3 +32,4 @@ Executable makeci
                   , monad-logger
                   , resource-pool
                   , pool-conduit
+                  , aeson

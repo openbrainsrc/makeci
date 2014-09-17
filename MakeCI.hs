@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings, DeriveGeneric #-}
 import Web.Spock
 import Web.Spock.Worker
 
@@ -6,8 +6,11 @@ import Control.Monad.Trans
 import Control.Monad
 import Data.Monoid
 import Data.Time
+import Data.List (isInfixOf)
 import System.Directory
 import System.Environment
+import GHC.Generics
+import Data.Aeson
 
 import qualified Text.Blaze.Html5 as H
 import Text.Blaze.Html5 ((!))
@@ -56,8 +59,11 @@ routes projects =  do
 
   post "/github-webhook/:projname" $ do
     pNm <- param "projname"
-    projs <- runDB $ selectList [ProjectRepoName ==. pNm] []
-    mapM_ (startBuild worker) [ pid | Entity pid p <- projs]
+    gh <- jsonData
+    liftIO $ putStrLn $ "GitHub ref: "++ref gh
+    when ("master" `isInfixOf` (ref gh)) $ do
+       projs <- runDB $ selectList [ProjectRepoName ==. pNm] []
+       mapM_ (startBuild worker) [ pid | Entity pid p <- projs]
 
   get "/" $ do
     projEnts <- runDB $ selectList [] []
@@ -138,3 +144,7 @@ startBuild worker projectId = do
     addWork WorkNow jobId worker
 
 workErrH errS jobId = do return WorkError
+
+data GitHubPost = GitHubPost { ref :: String } deriving Generic
+
+instance FromJSON GitHubPost

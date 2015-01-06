@@ -18,4 +18,6 @@ nop = return ()
 
 build bind = do
   ensureBuildEnv
+  buildIt bind
+
   return ()

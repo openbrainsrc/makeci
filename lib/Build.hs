@@ -7,6 +7,7 @@ import System.Directory
 import Control.Monad
 import System.Process
 import Data.List
+import System.FilePath
 
 ensureBuildEnv :: IO ()
 ensureBuildEnv = do
@@ -15,16 +16,26 @@ ensureBuildEnv = do
   let setupFile = ".pkgmake/setup-"++ehash
   ex <- doesDirectoryExist envDir
   when (not ex) $ do
-    --createDirectoryIfMissing True envDir
+    createDirectoryIfMissing True ".pkgmake/env"
     system $ "cowbuilder --create --basepath="++envDir
     putStrLn "Setting up build environment"
     deps <- makeRuleContents "build-depends"
     setupEnv <- makeRuleContents "setup-build-env"
     writeFile setupFile $ unlines $ [ "DEBIAN_FRONTEND=noninteractive"
                                     , "apt-get update"
-                                    , "apt-get install -y "++intercalate " " deps ]++setupEnv
+                                    , "apt-get install -y "++intercalate " " deps
+                                    , "apt-get install -y --no-install-recommends checkinstall make"]++setupEnv
     system $ "cowbuilder --execute "++setupFile ++" --save-after-exec --basepath="++envDir
     return ()
+
+buildIt :: Bool -> IO ()
+buildIt bind = do
+  (ehash, envDir) <- buildEnvDir
+  let buildFileName = ".pkgmake/build-"++ehash
+  folder <- createShardFolder bind ehash
+  buildFile folder >>= writeFile buildFileName
+  system $ "cowbuilder --execute "++buildFileName ++" --basepath="++envDir++" --bindmounts="++folder
+  return ()
 
 shell :: Bool -> IO ()
 shell nobind = do
@@ -35,6 +46,28 @@ shell nobind = do
                    else " --bindmounts="++pwd
   system $ "cowbuilder --login --basepath="++envDir++addBind
   return ()
+
+createShardFolder :: Bool -> String -> IO FilePath
+createShardFolder bind ehash = do
+  let tmpdir = "/tmp/pkgmake/shared-" ++ ehash
+  pwd <- getCurrentDirectory
+  let projName = last $ splitPath pwd
+  createDirectoryIfMissing True tmpdir
+  if bind
+     then system $ "ln -sfn "++pwd++" "++(tmpdir</>projName)
+     else system $ "git clone "++pwd++" "++(tmpdir</>projName)
+  return tmpdir
+
+
+buildFile :: FilePath -> IO String
+buildFile folder = do
+  (ehash, envDir) <- buildEnvDir
+  pwd <- getCurrentDirectory
+  let projName = last $ splitPath pwd
+  return $ unlines ["cd "++(folder</>projName),
+                    "make",
+                    "checkinstall ",
+                    "cp"]
 
 
 destroyBuildEnv :: IO ()

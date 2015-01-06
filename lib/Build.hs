@@ -26,10 +26,14 @@ ensureBuildEnv = do
     system $ "cowbuilder --execute "++setupFile ++" --save-after-exec --basepath="++envDir
     return ()
 
-shell :: IO ()
-shell = do
+shell :: Bool -> IO ()
+shell nobind = do
   (_, envDir) <- buildEnvDir
-  system $ "cowbuilder --login --basepath="++envDir
+  pwd <- getCurrentDirectory
+  let addBind = if nobind
+                   then ""
+                   else " --bindmounts="++pwd
+  system $ "cowbuilder --login --basepath="++envDir++addBind
   return ()
 
 

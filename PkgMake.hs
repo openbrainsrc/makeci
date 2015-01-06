@@ -7,15 +7,15 @@ import Build
 
 main = getArgs >>= dispatch
 
-dispatch ("build":_) = build
+dispatch ("build":args) = build $ "--bind" `elem` args
 dispatch ("test":_) = nop
 dispatch ("update":_) = nop
 dispatch ("destroy":_) = destroyBuildEnv
-dispatch ("shell":_) = shell
+dispatch ("shell":args) = shell $ "--bind" `elem` args
 dispatch ("exec":_) = nop
 
 nop = return ()
 
-build = do
+build bind = do
   ensureBuildEnv
   return ()

@@ -42,8 +42,10 @@ Executable pkgmake
 
 library
   ghc-options:       -Wall -fno-warn-unused-do-bind
+  hs-source-dirs:      lib
   exposed-modules:     Makefiles
                      , Utils
+                     , Build
   Build-depends:   base                     >= 4.6        && < 5
                   , text
                   , directory
@@ -56,3 +58,4 @@ library
                   , persistent
                   , persistent-sqlite
                   , persistent-template
+                  , hashable

@@ -13,6 +13,13 @@ makeFileRules  = map justRule . filter isRule . lines where
   justRule = takeWhile (/=':')
 
 
-makeDryRun :: [String] -> IO (Either String String)
+makeDryRun :: [String] -> IO String
 makeDryRun rls =
-  psh "." $ "make -n "++intercalate " " rls++" 2>/dev/null"
+  force_psh $ "make -n "++intercalate " " rls++" 2>/dev/null"
+
+makeRuleContents :: String -> IO [String]
+makeRuleContents rule = do
+  rules <- fmap makeFileRules $ readFile "Makefile"
+  if not $ rule `elem` rules
+     then return []
+     else fmap lines $ makeDryRun [rule]

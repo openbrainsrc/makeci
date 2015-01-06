@@ -10,8 +10,8 @@ main = getArgs >>= dispatch
 dispatch ("build":_) = build
 dispatch ("test":_) = nop
 dispatch ("update":_) = nop
-dispatch ("destroy":_) = nop
-dispatch ("shell":_) = nop
+dispatch ("destroy":_) = destroyBuildEnv
+dispatch ("shell":_) = shell
 dispatch ("exec":_) = nop
 
 nop = return ()

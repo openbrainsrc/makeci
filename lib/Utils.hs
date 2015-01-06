@@ -2,10 +2,7 @@
 
 module Utils where
 
-import Control.Monad.Trans
-import Control.Monad
 import System.Process
-import System.Cmd
 import System.IO
 import System.Exit
 import qualified Control.Exception as C
@@ -14,7 +11,6 @@ import Control.DeepSeq (rnf)
 import Control.Concurrent
 import qualified Data.Text.Lazy as TL
 import           Database.Persist.Sqlite hiding (get)
-import           Database.Persist hiding (get)
 
 
 
@@ -25,6 +21,15 @@ entityToIntId :: PersistEntity e => Key e -> Int
 entityToIntId ent = do
   case fromPersistValue . head . keyToValues $ ent of
     Right (uid::Int) ->  uid
+
+force_psh :: String -> IO String
+force_psh cmd = do
+  res <- psh "." cmd
+  case res of
+   Left e -> fail e
+   Right s -> return s
+
+
 
 -- from Baysig.Utils, by Ian Ross
 

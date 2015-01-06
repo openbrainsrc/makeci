@@ -37,13 +37,11 @@ Executable makeci
 
 Executable pkgmake
    Main-Is:        PkgMake.hs
-   buildable:      False
-
    Build-depends:   base                     >= 4.6        && < 5
                   , makeci
 
 library
-  ghc-options:       -Wall -O2 -threaded -fllvm -fno-warn-unused-do-bind
+  ghc-options:       -Wall -fno-warn-unused-do-bind
   exposed-modules:     Makefiles
                      , Utils
   Build-depends:   base                     >= 4.6        && < 5

@@ -9,8 +9,8 @@ import System.Process
 import Data.List
 import System.FilePath
 
-ensureBuildEnv :: IO ()
-ensureBuildEnv = do
+ensureBuildEnv :: Bool -> IO ()
+ensureBuildEnv bind = do
   (ehash, envDir) <- buildEnvDir
   putStrLn envDir
   let setupFile = ".pkgmake/setup-"++ehash
@@ -21,18 +21,23 @@ ensureBuildEnv = do
     putStrLn "Setting up build environment"
     deps <- makeRuleContents "build-depends"
     setupEnv <- makeRuleContents "setup-build-env"
+    apts <- makeRuleContents "apt-sources-build"
+    (folder, projName) <- createShardFolder bind ehash
     writeFile setupFile $ unlines $ [ "DEBIAN_FRONTEND=noninteractive"
+                                    , "apt-get install -y --no-install-recommends software-properties-common checkinstall make"
+                                    , unlines $ map ("add-apt-repository -y "++) apts
                                     , "apt-get update"
                                     , "apt-get install -y "++intercalate " " deps
-                                    , "apt-get install -y --no-install-recommends checkinstall make"]++setupEnv
-    system $ "cowbuilder --execute "++setupFile ++" --save-after-exec --basepath="++envDir
+                                    , "cd "++(folder</>projName)
+                                    ]++setupEnv
+    system $ "cowbuilder --execute "++setupFile ++" --save-after-exec --basepath="++envDir++" --bindmounts="++folder
     return ()
 
 buildIt :: Bool -> IO ()
 buildIt bind = do
   (ehash, envDir) <- buildEnvDir
   let buildFileName = ".pkgmake/build-"++ehash
-  folder <- createShardFolder bind ehash
+  (folder,_) <- createShardFolder bind ehash
   buildFile folder >>= writeFile buildFileName
   system $ "cowbuilder --execute "++buildFileName ++" --basepath="++envDir++" --bindmounts="++folder
   return ()
@@ -47,16 +52,18 @@ shell nobind = do
   system $ "cowbuilder --login --basepath="++envDir++addBind
   return ()
 
-createShardFolder :: Bool -> String -> IO FilePath
+createShardFolder :: Bool -> String -> IO (FilePath, String)
 createShardFolder bind ehash = do
   let tmpdir = "/tmp/pkgmake/shared-" ++ ehash
   pwd <- getCurrentDirectory
   let projName = last $ splitPath pwd
   createDirectoryIfMissing True tmpdir
   if bind
-     then system $ "ln -sfn "++pwd++" "++(tmpdir</>projName)
-     else system $ "git clone "++pwd++" "++(tmpdir</>projName)
-  return tmpdir
+     then void $ system $ "ln -sfn "++pwd++" "++(tmpdir</>projName)
+     else do
+       ex <- doesDirectoryExist (tmpdir</>projName)
+       when (not ex) $ void $ system $ "git clone "++pwd++" "++(tmpdir</>projName)
+  return (tmpdir, projName)
 
 
 buildFile :: FilePath -> IO String
@@ -66,7 +73,7 @@ buildFile folder = do
   let projName = last $ splitPath pwd
   return $ unlines ["cd "++(folder</>projName),
                     "make",
-                    "checkinstall ",
+                    --"checkinstall ",
                     "cp"]
 
 
@@ -87,4 +94,4 @@ buildEnvHash = do
   --mapM putStrLn rules
   let envRules = filter (`elem` rules) $ words "build-depends setup-build-env"
   buildEnv <- makeDryRun envRules
-  return $ show $ hash buildEnv
+  return $ show $ abs $ hash buildEnv

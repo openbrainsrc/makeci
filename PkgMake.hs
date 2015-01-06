@@ -17,7 +17,7 @@ dispatch ("exec":_) = nop
 nop = return ()
 
 build bind = do
-  ensureBuildEnv
+  ensureBuildEnv bind
   buildIt bind
 
   return ()

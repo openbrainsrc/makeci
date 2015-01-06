@@ -1,5 +1,5 @@
 {-# LANGUAGE OverloadedStrings, DeriveGeneric #-}
-import Web.Spock
+import Web.Spock.Simple
 import Web.Spock.Worker
 
 import Control.Monad.Trans

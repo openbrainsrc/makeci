@@ -92,16 +92,24 @@ buildFile :: FilePath -> IO String
 buildFile folder = do
   pwd <- getCurrentDirectory
   version <- makeVariableValue "version"
-
+  deps <- fmap createDeps $ makeRuleContents "depends"
   let projName = last $ splitPath pwd
 
-      checkInstall = "checkinstall -y --pkgversion "++version++" --pkgname="++projName
+      checkInstall = "checkinstall -y --pkgversion "++version++" --install=no --pkgname="++projName++deps
   return $ unlines ["set -e",
                     "LANG=en_US.UTF-8",
                     "cd "++(folder</>projName),
                     "make",
                     checkInstall
                    ]
+
+createDeps :: [String] -> String
+createDeps [] = ""
+createDeps ss | all mostlyEmpty ss = ""
+              | otherwise = " --requires=\""++(intercalate "," $ map chomp ss)++"\""
+
+mostlyEmpty :: String -> Bool
+mostlyEmpty s = all (`elem` " \n\r\t") s
 
 
 destroyBuildEnv :: IO ()

@@ -38,8 +38,8 @@ updateEnv bind = do
                                     , "apt-get update"
                                     , "apt-get install -y "++intercalate " " deps
                                     , "cd "++(folder</>projName)
-                                    , "make setup-build-env"
                                     , (if "clean" `elem` rules then "make clean" else "")
+                                    , "make setup-build-env"
                                     ]
   system $ "cowbuilder --execute "++setupFile ++" --save-after-exec --basepath="++envDir++bindMounts
   return ()
@@ -52,8 +52,7 @@ buildIt bind = do
   (folder,_) <- createShardFolder bind ehash
   bindMounts <- createBindMounts bind folder
   buildFile folder >>= writeFile buildFileName
-  system $ "cowbuilder --execute "++buildFileName ++" --basepath="++envDir++bindMounts
-  return ()
+  system' $ "cowbuilder --execute "++buildFileName ++" --basepath="++envDir++bindMounts
 
 shell :: Bool -> IO ()
 shell bind = do
@@ -115,9 +114,8 @@ mostlyEmpty s = all (`elem` " \n\r\t") s
 destroyBuildEnv :: IO ()
 destroyBuildEnv = do
   (ehash, envDir) <- buildEnvDir
-  system $ "rm -rf "++envDir
-  system $ "rm -rf /tmp/pkgmake/shared-" ++ ehash
-  return ()
+  system' $ "rm -rf "++envDir
+  system' $ "rm -rf /tmp/pkgmake/shared-" ++ ehash
 
 buildEnvDir :: IO (String, FilePath)
 buildEnvDir = do
@@ -131,3 +129,5 @@ buildEnvHash = do
   let envRules = filter (`elem` rules) $ words "build-depends setup-build-env"
   buildEnv <- makeDryRun envRules
   return $ show $ abs $ hash buildEnv
+
+system' cmd = putStrLn cmd >> system cmd >> return ()

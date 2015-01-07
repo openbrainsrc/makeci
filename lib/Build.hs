@@ -99,15 +99,16 @@ buildFile folder = do
   return $ unlines ["set -e",
                     "LANG=en_US.UTF-8",
                     "cd "++(folder</>projName),
-                    "make","ls",
+                    "make",
                     checkInstall
                    ]
 
 
 destroyBuildEnv :: IO ()
 destroyBuildEnv = do
-  (_, envDir) <- buildEnvDir
+  (ehash, envDir) <- buildEnvDir
   system $ "rm -rf "++envDir
+  system $ "rm -rf /tmp/pkgmake/shared-" ++ ehash
   return ()
 
 buildEnvDir :: IO (String, FilePath)

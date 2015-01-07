@@ -13,9 +13,20 @@ import qualified Data.Text.Lazy as TL
 import           Database.Persist.Sqlite hiding (get)
 
 
+system' cmd = do
+  putStrLn cmd
+  res <- system cmd
+  case res of
+    ExitSuccess -> return ()
+    ExitFailure f -> fail $ "error "++show f++": "++cmd
+
 
 tshow :: Show a => a -> TL.Text
 tshow = TL.pack . show
+
+mostlyEmpty :: String -> Bool
+mostlyEmpty s = all (`elem` " \n\r\t") s
+
 
 entityToIntId :: PersistEntity e => Key e -> Int
 entityToIntId ent = do

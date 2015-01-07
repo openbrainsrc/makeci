@@ -27,7 +27,7 @@ makeRuleContents rule = do
   rules <- fmap makeFileRules $ readFile "Makefile"
   if not $ rule `elem` rules
      then return []
-     else fmap lines $ makeDryRun [rule]
+     else fmap (filter (not . mostlyEmpty) . lines) $ makeDryRun [rule]
 
 chomp = reverse . c . reverse . c where
   c = dropWhile crap
@@ -36,3 +36,7 @@ chomp = reverse . c . reverse . c where
   crap '\n' = True
   crap '\t' = True
   crap _ = False
+
+getGitBranchName :: IO String
+getGitBranchName = do
+  fmap chomp $ force_psh "git rev-parse --abbrev-ref HEAD"

@@ -5,6 +5,7 @@ cabv  := $(shell grep '^Version' makeci.cabal | awk -F ' ' '{print $$2}')
 version := $(cabv).$(now)
 
 all:
+	cabal configure
 	cabal build
 
 clean:

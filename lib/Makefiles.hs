@@ -17,9 +17,22 @@ makeDryRun :: [String] -> IO String
 makeDryRun rls =
   force_psh $ "make -n "++intercalate " " rls++" 2>/dev/null"
 
+makeVariableValue :: String -> IO String
+makeVariableValue varnm = do
+  res <- force_psh $ "make -rpn 2>/dev/null | grep "++varnm
+  return $ chomp $ tail $ dropWhile (/='=') res
+
 makeRuleContents :: String -> IO [String]
 makeRuleContents rule = do
   rules <- fmap makeFileRules $ readFile "Makefile"
   if not $ rule `elem` rules
      then return []
      else fmap lines $ makeDryRun [rule]
+
+chomp = reverse . c . reverse . c where
+  c = dropWhile crap
+  crap ' ' = True
+  crap '\r' = True
+  crap '\n' = True
+  crap '\t' = True
+  crap _ = False

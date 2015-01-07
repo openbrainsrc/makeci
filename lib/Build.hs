@@ -26,6 +26,9 @@ updateEnv bind = do
   deps <- makeRuleContents "build-depends"
   setupEnv <- makeRuleContents "setup-build-env"
   apts <- makeRuleContents "apt-sources-build"
+
+  rules <- fmap makeFileRules $ readFile "Makefile"
+
   (folder, projName) <- createShardFolder bind ehash
   bindMounts <- createBindMounts bind folder
   writeFile setupFile $ unlines $ [ "DEBIAN_FRONTEND=noninteractive"
@@ -35,7 +38,9 @@ updateEnv bind = do
                                     , "apt-get update"
                                     , "apt-get install -y "++intercalate " " deps
                                     , "cd "++(folder</>projName)
-                                    ]++setupEnv
+                                    , "make setup-build-env"
+                                    , (if "clean" `elem` rules then "make clean" else "")
+                                    ]
   system $ "cowbuilder --execute "++setupFile ++" --save-after-exec --basepath="++envDir++bindMounts
   return ()
 
@@ -86,13 +91,17 @@ createShardFolder bind ehash = do
 buildFile :: FilePath -> IO String
 buildFile folder = do
   pwd <- getCurrentDirectory
+  version <- makeVariableValue "version"
+
   let projName = last $ splitPath pwd
+
+      checkInstall = "checkinstall -y --pkgversion "++version++" --pkgname="++projName
   return $ unlines ["set -e",
                     "LANG=en_US.UTF-8",
                     "cd "++(folder</>projName),
-                    "make",
-                    --"checkinstall ",
-                    "cp"]
+                    "make","ls",
+                    checkInstall
+                   ]
 
 
 destroyBuildEnv :: IO ()

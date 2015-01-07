@@ -7,11 +7,11 @@ import Build
 
 main = getArgs >>= dispatch
 
-dispatch ("build":args) = build $ "--bind" `elem` args
+dispatch ("build":args) = build $ not $ "--clone" `elem` args
 dispatch ("test":_) = nop
-dispatch ("update":_) = nop
+dispatch ("updateenv":args) = updateEnv $ not $ "--clone" `elem` args
 dispatch ("destroy":_) = destroyBuildEnv
-dispatch ("shell":args) = shell $ "--bind" `elem` args
+dispatch ("shell":args) = shell $ not $ "--clone" `elem` args
 dispatch ("exec":_) = nop
 
 nop = return ()

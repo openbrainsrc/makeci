@@ -13,16 +13,12 @@ Executable makeci
    buildable:      False
    ghc-options:    -threaded
    Build-depends:   base                      >= 4.6        && < 5
-                  , Spock >=  0.7.6
-                  , Spock-worker >= 0.1.0.2
                   , text
                   , directory
                   , process
                   , stm
                   , mtl
                   , deepseq
-                  , blaze-html
-                  , blaze-markup
                   , time == 1.4.2
                   , old-locale
                   , persistent

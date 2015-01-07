@@ -1,7 +1,6 @@
 module Build where
 
 import Makefiles
-import Utils
 import Data.Hashable
 import System.Directory
 import Control.Monad
@@ -11,46 +10,64 @@ import System.FilePath
 
 ensureBuildEnv :: Bool -> IO ()
 ensureBuildEnv bind = do
-  (ehash, envDir) <- buildEnvDir
+  (_, envDir) <- buildEnvDir
   putStrLn envDir
-  let setupFile = ".pkgmake/setup-"++ehash
   ex <- doesDirectoryExist envDir
   when (not ex) $ do
     createDirectoryIfMissing True ".pkgmake/env"
     system $ "cowbuilder --create --basepath="++envDir
     putStrLn "Setting up build environment"
-    deps <- makeRuleContents "build-depends"
-    setupEnv <- makeRuleContents "setup-build-env"
-    apts <- makeRuleContents "apt-sources-build"
-    (folder, projName) <- createShardFolder bind ehash
-    writeFile setupFile $ unlines $ [ "DEBIAN_FRONTEND=noninteractive"
+    updateEnv bind
+
+updateEnv :: Bool -> IO ()
+updateEnv bind = do
+  (ehash, envDir) <- buildEnvDir
+  let setupFile = ".pkgmake/setup-"++ehash
+  deps <- makeRuleContents "build-depends"
+  setupEnv <- makeRuleContents "setup-build-env"
+  apts <- makeRuleContents "apt-sources-build"
+  (folder, projName) <- createShardFolder bind ehash
+  bindMounts <- createBindMounts bind folder
+  writeFile setupFile $ unlines $ [ "DEBIAN_FRONTEND=noninteractive"
+                                    , "LANG=en_US.UTF-8"
                                     , "apt-get install -y --no-install-recommends software-properties-common checkinstall make"
                                     , unlines $ map ("add-apt-repository -y "++) apts
                                     , "apt-get update"
                                     , "apt-get install -y "++intercalate " " deps
                                     , "cd "++(folder</>projName)
                                     ]++setupEnv
-    system $ "cowbuilder --execute "++setupFile ++" --save-after-exec --basepath="++envDir++" --bindmounts="++folder
-    return ()
+  system $ "cowbuilder --execute "++setupFile ++" --save-after-exec --basepath="++envDir++bindMounts
+  return ()
+
 
 buildIt :: Bool -> IO ()
 buildIt bind = do
   (ehash, envDir) <- buildEnvDir
   let buildFileName = ".pkgmake/build-"++ehash
   (folder,_) <- createShardFolder bind ehash
+  bindMounts <- createBindMounts bind folder
   buildFile folder >>= writeFile buildFileName
-  system $ "cowbuilder --execute "++buildFileName ++" --basepath="++envDir++" --bindmounts="++folder
+  system $ "cowbuilder --execute "++buildFileName ++" --basepath="++envDir++bindMounts
   return ()
 
 shell :: Bool -> IO ()
-shell nobind = do
-  (_, envDir) <- buildEnvDir
-  pwd <- getCurrentDirectory
-  let addBind = if nobind
-                   then ""
-                   else " --bindmounts="++pwd
-  system $ "cowbuilder --login --basepath="++envDir++addBind
+shell bind = do
+  (ehash, envDir) <- buildEnvDir
+  (folder,_) <- createShardFolder bind ehash
+  bindMounts <- createBindMounts bind folder
+  let cmd ="cowbuilder --login --basepath="++envDir++ bindMounts
+  putStrLn cmd
+  system $ cmd
   return ()
+
+createBindMounts :: Bool -> FilePath -> IO String
+createBindMounts bind folder = do
+  pwd <- getCurrentDirectory -- TODO make this top directory
+  if bind
+     then return $ " --bindmounts=\""++pwd++" "++folder++"\""
+     else return $ " --bindmounts="++folder
+
+
 
 createShardFolder :: Bool -> String -> IO (FilePath, String)
 createShardFolder bind ehash = do
@@ -68,10 +85,11 @@ createShardFolder bind ehash = do
 
 buildFile :: FilePath -> IO String
 buildFile folder = do
-  (ehash, envDir) <- buildEnvDir
   pwd <- getCurrentDirectory
   let projName = last $ splitPath pwd
-  return $ unlines ["cd "++(folder</>projName),
+  return $ unlines ["set -e",
+                    "LANG=en_US.UTF-8",
+                    "cd "++(folder</>projName),
                     "make",
                     --"checkinstall ",
                     "cp"]

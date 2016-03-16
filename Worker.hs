@@ -28,7 +28,7 @@ gitUrl (Project user repo) = "git@github.com:"++user++"/"++repo++".git"
 
 ensure_exists_or_pull proj = do
     ex <- doesDirectoryExist $ "/tmp/" ++ projectRepoName proj
-    if ex 
+    if ex
        then return () -- void $ pull proj
        else void $ system $ "git clone " ++ gitUrl proj ++ " /tmp/"++projectRepoName proj
 
@@ -39,6 +39,11 @@ pull proj = do
     putStrLn cmd
     system cmd
 
+doClean proj = do
+  res <- liftIO $ psh ("/tmp/"++projectRepoName prj) ("make ciclean")
+  return ()
+
+
 runBuild :: WorkHandler Connection sess st JobId
 runBuild jobId =  do
   Just job <- runDB $ get jobId
@@ -46,22 +51,22 @@ runBuild jobId =  do
   continueBuild jobId job prj
 
 continueBuild jobId job prj = do
-  
+
     let updateJ = runDB . update jobId
 
     updateJ [JobStatus =. "Pulling"]
-    
+
     pull prj
 
     gitres <- liftIO $ psh ("/tmp/"++projectRepoName prj) ("git log --oneline -1")
 
 --    liftIO $ print gitres
 
-    let (hash, commit) = case gitres of 
+    let (hash, commit) = case gitres of
              Left err -> ("unknown", "unknown")
-             Right s -> span (/=' ') s             
+             Right s -> span (/=' ') s
 
-    
+
     updateJ [JobStatus =. "Building",
              JobGitHash =. hash,
              JobGitCommit =. commit]
@@ -74,7 +79,7 @@ continueBuild jobId job prj = do
                                JobStatus =. "BuildFailure"]
                       return WorkComplete
       Right resS -> do updateJ [JobOutput =. pre resS,
-                                JobStatus =. "Testing"]  
+                                JobStatus =. "Testing"]
                        res <- liftIO $ psh ("/tmp/"++projectRepoName prj) ("make citest")
                        let tres = case res of
                                    Left terrS -> terrS

@@ -92,6 +92,12 @@ routes projects =  do
     startBuild worker pid
     redirect "/"
 
+  get "/clean/:projid" $ do
+    pid <- param "projid"
+    cleanBuild worker pid
+    redirect "/"
+
+
   get "/job/:jobid" $ do
     jobid <- param "jobid"
     mjob <- runDB $ P.get jobid
@@ -132,6 +138,9 @@ help file = putStrLn $ unlines
    "glutamate/probably-base",
    "openbrainsrc/debcd",""]
 
+cleanBuild projectId = do
+    Just prj <- runDB $ P.get projectId
+    doClean prj
 
 startBuild worker projectId = do
 

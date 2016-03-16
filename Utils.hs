@@ -21,21 +21,21 @@ import           Database.Persist hiding (get)
 tshow :: Show a => a -> TL.Text
 tshow = TL.pack . show
 
-entityToIntId :: KeyBackend b e -> Int
+{-entityToIntId :: KeyBackend b e -> Int
 entityToIntId ent = do
   case fromPersistValue . unKey $ ent of
-    Right (uid::Int) ->  uid
+    Right (uid::Int) ->  uid -}
 
 -- from Baysig.Utils, by Ian Ross
 
 
 psh :: String -> String -> IO (Either String String)
 psh pwd cmd =
-  myCatch $ 
+  myCatch $
   bracketOnError
   (createProcess $ (shell cmd) { std_out = CreatePipe
                                , std_err = CreatePipe
-                               , create_group = True 
+                               , create_group = True
                                , cwd = Just pwd })
   (\(_, Just hout, Just herr, ph) -> do
       interruptProcessGroupOf ph

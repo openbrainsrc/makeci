@@ -6,6 +6,9 @@
 {-# LANGUAGE TemplateHaskell   #-}
 {-# LANGUAGE TypeFamilies      #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE MultiParamTypeClasses      #-}
+
 
 module Database where
 
@@ -18,7 +21,7 @@ import Data.Time
 import Control.Monad.Logger
 import Control.Monad.Trans.Resource
 import Data.Conduit.Pool
-import Web.Spock
+import Web.Spock.Simple
 import Web.Scotty
 import Text.Blaze.Html5
 import qualified Data.Text.Lazy as T
@@ -28,7 +31,7 @@ Project
     userName String
     repoName String
     deriving Eq
-Job 
+Job
     project ProjectId
     gitHash String
     gitCommit String
@@ -40,18 +43,16 @@ Session
     validUntil UTCTime
     userId Int
     deriving Show
-
 |]
 
 type Status = String
 
 runDB action =
     runQuery $ \conn ->
-        runResourceT $ runStderrLoggingT $ runSqlConn action conn 
+        runResourceT $ runStderrLoggingT $ runSqlConn action conn
 
 
-instance Parsable (KeyBackend SqlBackend e) where
-  parseParam t = case readsPrec 5 $ T.unpack t of 
+{-instance Parsable (KeyBackend SqlBackend e) where
+  parseParam t = case readsPrec 5 $ T.unpack t of
                    [] -> Left $ "Cannot parse id from " `T.append` t
-                   (x,_):_ -> Right $ Key $ toPersistValue (x::Int)
-
+                   (x,_):_ -> Right $ Key $ toPersistValue (x::Int) -}

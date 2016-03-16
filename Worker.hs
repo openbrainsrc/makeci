@@ -39,7 +39,7 @@ pull proj = do
     putStrLn cmd
     system cmd
 
-doClean proj = do
+doClean prj = do
   res <- liftIO $ psh ("/tmp/"++projectRepoName prj) ("make ciclean")
   return ()
 

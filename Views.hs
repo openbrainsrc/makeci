@@ -14,16 +14,17 @@ import Data.Time
 
 import Database
 import Database.Persist hiding (get)
+import Database.Persist.Sql (fromSqlKey)
 
 
 jobRow (Project u r, Entity jid (Job _ hash commit start mdone status out)) =
     tr ! A.class_ (statusToClass status) $ do
-                     td $ toHtml $ "#" ++ show (entityToIntId jid)
+                     td $ toHtml $ "#" ++ show (fromSqlKey jid)
                      td $ toHtml u >> "/" >> toHtml r
                      td $ showDateAndTime start
                      td $ toHtml hash
                      td $ toHtml commit
-                     td $ H.a ! A.href (H.toValue $ "/job/"++show (entityToIntId jid)) $ toHtml status
+                     td $ H.a ! A.href (H.toValue $ "/job/"++show (fromSqlKey jid)) $ toHtml status
 
 jobQRow (Job _ hash commit start mdone status out) =
     tr ! A.class_ "warning" $ do
@@ -58,8 +59,8 @@ projRow (Entity pid proj@(Project u r)) =
       url = "https://github.com/"++fullNm
   in tr $ do
     td $ H.a ! A.href (H.toValue url) $ toHtml fullNm
-    td $ do H.a ! A.class_ "btn btn-mini" ! A.href (H.toValue $ "/clean/"++show (entityToIntId pid)) $ "Clean"
-            H.a ! A.class_ "btn btn-mini" ! A.href (H.toValue $ "/build-now/"++show (entityToIntId pid)) $ "Build now"
+    td $ do H.a ! A.class_ "btn btn-mini" ! A.href (H.toValue $ "/clean/"++show (fromSqlKey pid)) $ "Clean"
+            H.a ! A.class_ "btn btn-mini" ! A.href (H.toValue $ "/build-now/"++show (fromSqlKey pid)) $ "Build now"
 
 
 template :: String -> H.Html -> H.Html -> H.Html

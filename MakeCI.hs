@@ -1,5 +1,5 @@
 {-# LANGUAGE OverloadedStrings, DeriveGeneric #-}
-import Web.Spock
+import Web.Spock.Simple hiding (SessionId)
 import Web.Spock.Worker
 
 import Control.Monad.Trans
@@ -59,7 +59,7 @@ routes projects =  do
 
   post "/github-webhook/:projname" $ do
     pNm <- param "projname"
-    gh <- jsonData
+    gh <- jsonBody
     liftIO $ putStrLn $ "GitHub ref: "++ref gh
     when ("master" `isInfixOf` (ref gh)) $ do
        projs <- runDB $ selectList [ProjectRepoName ==. pNm] []

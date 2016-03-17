@@ -21,23 +21,25 @@ import Database.Persist hiding (get)
 import qualified Database.Persist as P
 import Database.Persist.Sqlite hiding (get)
 import Data.Text.Lazy (toStrict)
+import Control.Monad.Logger
 
 import Utils
 import Worker
 import Views
 import Database
 
+type SessionT = ()
 
-type Route a = SpockM Connection SessionId () a
-type Action a = SpockAction Connection SessionId () a
+type Route a = SpockM Connection SessionT () a
+type Action a = SpockAction Connection SessionT () a
 
 
 blaze :: H.Html -> Action ()
 blaze = html . toStrict . renderHtml
 
 
-
-sessCfg = SessionCfg "makeci" (72*60*60) 42
+sessCfg :: SessionCfg SessionT
+sessCfg = SessionCfg "makeci" (72*60*60) 42 () Nothing
 
 main = do
    args <- getArgs
@@ -47,8 +49,8 @@ main = do
 
 
 makeCI projects = do
-    withSqlitePool "/tmp/makecidb" 5 $ \pool -> do
-      spock 3001 sessCfg (PCPool pool) () (routes projects)
+    runNoLoggingT $ withSqlitePool "/tmp/makecidb" 5 $ \pool -> do
+      NoLoggingT $ runSpock 3001 $ spock sessCfg (PCPool pool) () (routes projects)
 
 
 routes  :: [Project] -> Route ()

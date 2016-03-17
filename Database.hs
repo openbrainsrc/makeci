@@ -39,10 +39,6 @@ Job
     finished UTCTime Maybe
     status String
     output Html
-Session
-    validUntil UTCTime
-    userId Int
-    deriving Show
 |]
 
 type Status = String

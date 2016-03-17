@@ -28,6 +28,8 @@ import Worker
 import Views
 import Database
 
+import GHC.IO.Encoding (setLocaleEncoding, utf8)
+
 type SessionT = ()
 
 type Route a = SpockM Connection SessionT () a
@@ -43,6 +45,7 @@ sessCfg = SessionCfg "makeci" (72*60*60) 42 () Nothing
 
 main = do
    args <- getArgs
+   setLocaleEncoding utf8
    case args of
      [] -> readProjects "/etc/makeci-repos" >>= makeCI
      file:_ -> readProjects file >>= makeCI

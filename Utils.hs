@@ -16,7 +16,8 @@ import qualified Data.Text.Lazy as TL
 import qualified Data.Text as T
 import           Database.Persist.Sqlite hiding (get)
 import           Database.Persist hiding (get)
-
+import Shelly
+import Data.String (fromString)
 
 
 tshow :: Show a => a -> T.Text
@@ -27,11 +28,24 @@ entityToIntId ent = do
   case fromPersistValue . unKey $ ent of
     Right (uid::Int) ->  uid -}
 
--- from Baysig.Utils, by Ian Ross
-
 
 psh :: String -> String -> IO (Either String String)
-psh pwd cmd =
+psh pwd cmds = shelly $ do
+  cd $ fromString pwd
+  let (cmd:args) = words cmds
+
+  sout <- errExit False $ run (fromString cmd) (map T.pack args)
+  serr <- lastStderr
+  exCode <- lastExitCode
+  let retS = (T.unpack $ T.append sout serr)
+  if exCode == 0
+    then return $ Right retS
+    else return $ Left retS
+
+
+-- from Baysig.Utils, by Ian Ross
+pshIR :: String -> String -> IO (Either String String)
+pshIR pwd cmd =
   myCatch $
   bracketOnError
   (createProcess $ (shell cmd) { std_out = CreatePipe

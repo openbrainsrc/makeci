@@ -33,3 +33,4 @@ Executable makeci
                   , resource-pool
                   , pool-conduit
                   , aeson
+                  , shelly

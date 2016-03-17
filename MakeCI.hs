@@ -20,6 +20,7 @@ import Text.Blaze.Html.Renderer.Text (renderHtml)
 import Database.Persist hiding (get)
 import qualified Database.Persist as P
 import Database.Persist.Sqlite hiding (get)
+import Data.Text.Lazy (toStrict)
 
 import Utils
 import Worker
@@ -32,7 +33,7 @@ type Action a = SpockAction Connection SessionId () a
 
 
 blaze :: H.Html -> Action ()
-blaze = html . renderHtml
+blaze = html . toStrict . renderHtml
 
 
 
@@ -55,11 +56,11 @@ routes projects =  do
   runDB $ runMigration migrateAll
   runDB $ updateProjects projects
 
-  worker <- newWorker 10 runBuild workErrH
+  worker <- newWorker (WorkerConfig 100 WorkerNoConcurrency) runBuild workErrH
 
   post "/github-webhook/:projname" $ do
-    pNm <- param "projname"
-    gh <- jsonBody
+    Just pNm <- param "projname"
+    Just gh <- jsonBody
     liftIO $ putStrLn $ "GitHub ref: "++ref gh
     when ("master" `isInfixOf` (ref gh)) $ do
        projs <- runDB $ selectList [ProjectRepoName ==. pNm] []
@@ -88,18 +89,18 @@ routes projects =  do
             H.table ! A.class_ "table table-condensed" $ mconcat (dbjobs)
 
   get "/build-now/:projid" $ do
-    pid <- param "projid"
+    Just pid <- param "projid"
     startBuild worker pid
     redirect "/"
 
   get "/clean/:projid" $ do
-    pid <- param "projid"
-    cleanBuild worker pid
+    Just pid <- param "projid"
+    cleanBuild pid
     redirect "/"
 
 
   get "/job/:jobid" $ do
-    jobid <- param "jobid"
+    Just jobid <- param "jobid"
     mjob <- runDB $ P.get jobid
     case mjob of
       Nothing -> html $ "no job " <> tshow jobid
@@ -152,7 +153,7 @@ startBuild worker projectId = do
 
     addWork WorkNow jobId worker
 
-workErrH errS jobId = do return WorkError
+workErrH = ErrorHandlerIO $ \err _ ->  print err >> return WorkError
 
 data GitHubPost = GitHubPost { ref :: String } deriving Generic
 

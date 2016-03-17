@@ -13,13 +13,14 @@ import Control.Exception
 import Control.DeepSeq (rnf)
 import Control.Concurrent
 import qualified Data.Text.Lazy as TL
+import qualified Data.Text as T
 import           Database.Persist.Sqlite hiding (get)
 import           Database.Persist hiding (get)
 
 
 
-tshow :: Show a => a -> TL.Text
-tshow = TL.pack . show
+tshow :: Show a => a -> T.Text
+tshow = T.pack . show
 
 {-entityToIntId :: KeyBackend b e -> Int
 entityToIntId ent = do

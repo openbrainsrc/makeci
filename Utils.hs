@@ -34,7 +34,7 @@ psh pwd cmds = shelly $ do
   cd $ fromString pwd
   let (cmd:args) = words cmds
 
-  sout <- errExit False $ run (fromString cmd) (map T.pack args)
+  sout <- errExit False $ escaping False $ silently $ run (fromString cmd) (map T.pack args)
   serr <- lastStderr
   exCode <- lastExitCode
   let retS = (T.unpack $ T.append sout serr)

@@ -16,6 +16,7 @@ import qualified Text.Blaze.Html5 as H
 import Text.Blaze.Html5 ((!))
 import qualified Text.Blaze.Html5.Attributes as A
 import Text.Blaze.Html.Renderer.Text (renderHtml)
+import Text.Blaze.Internal (preEscapedString)
 
 import Database.Persist hiding (get)
 import qualified Database.Persist as P
@@ -84,11 +85,17 @@ routes projects =  do
 
     let mreload = if all (done . jobStatus . entityVal) dbJobEnts
                      then mempty
-                     else H.meta ! A.httpEquiv "refresh" ! A.content "2"
+                     else H.meta ! A.httpEquiv "refresh" ! A.content "5"
+
+    epstree <- liftIO $ psh "/" "pstree -a `pgrep makeci`"
 
     blaze $ template "MakeCI" (mreload) $ do
             H.h1 "Projects"
             H.table ! A.class_ "table table-condensed" $ mconcat projects
+
+            case epstree of
+                 Left s -> H.pre $ preEscapedString s
+                 Right s -> H.pre $ preEscapedString s
 
             H.h1 "Jobs"
             H.table ! A.class_ "table table-condensed" $ mconcat (dbjobs)
